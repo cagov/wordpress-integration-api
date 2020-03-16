@@ -1,0 +1,20 @@
+{
+  "name": "wordpress-integration-api",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "setup": "npm install",
+    "test": "echo \"No tests yet...\""
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cagov/wordpress-integration-api.git"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "CHPIncidents": "file:CHPIncidents",
+    "FoodBanks": "file:FoodBanks",
+    "geolib": "^3.2.1"
+  }
+}
