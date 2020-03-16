@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "CHPIncidents": "file:CHPIncidents",
-    "FoodBanks": "file:FoodBanks",
-    "geolib": "^3.2.1"
+    "geolib": "^3.2.1",
+    "haversine": "^1.1.1"
   }
 }
