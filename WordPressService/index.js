@@ -1,3 +1,7 @@
+const { BlobServiceClient } = require('@azure/storage-blob');
+const parseXMLString = require('xml2js').parseString;
+const geolib = require('geolib');
+
 let pinghistory = [];
 
 const committer = {
