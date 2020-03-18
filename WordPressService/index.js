@@ -8,8 +8,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const githubBranch = 'master';
-//const githubBranch = 'synctest';
+//const githubBranch = 'master';
+const githubBranch = 'synctest';
 const githubSyncFolder = 'pages'; //no slash at the end
 const wordPressApiUrl = 'https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/';
 const defaultTags = ['covid19'];
@@ -55,10 +55,10 @@ module.exports = async function (context, req) {
 
     //const tags = (await fetchJSON(`${wordPressApiUrl}tags`))
     //    .map(x=>({id:x.id,name:x.name}));
-
+    //const sourcefiles2 = (await fetchJSON(`${wordPressApiUrl}posts?per_page=100`))
 
     //Query WP files
-    const sourcefiles = (await fetchJSON(`${wordPressApiUrl}posts`,defaultoptions()))
+    const sourcefiles = (await fetchJSON(`${wordPressApiUrl}posts?per_page=100`))
         .filter(x=>!x.categories.includes(ignoreCategoryId));
 
     //Add custom columns to sourcefile data
