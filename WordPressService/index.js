@@ -58,8 +58,8 @@ module.exports = async function (context, req) {
     //const sourcefiles2 = (await fetchJSON(`${wordPressApiUrl}posts?per_page=100`))
 
     //Query WP files
-    const sourcefiles = (await fetchJSON(`${wordPressApiUrl}posts?per_page=100`))
-        .filter(x=>!x.categories.includes(ignoreCategoryId));
+    const sourcefiles = (await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`))
+        //.filter(x=>!x.categories.includes(ignoreCategoryId));
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
