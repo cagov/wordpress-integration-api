@@ -8,32 +8,29 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const githubBranch = 'master'
+const githubBranch = 'master';
+//const githubBranch = 'synctest';
 const githubSyncFolder = 'pages'; //no slash at the end
 const wordPressApiUrl = 'https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/';
 const defaultTags = ['covid19'];
 const ignoreFiles = ['index.html'];
 
 const githubApiContents = 'contents/';
+const ignoreCategorySlug = 'do-not-deploy';
 
 //attachments here...sourcefiles[1]._links['wp:attachment'][0].href
 
 
 
 module.exports = async function (context, req) {
+    //Logging data
     const started = getPacificTimeNow();
-
-    //const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
-    //    .map(x=>({id:x.id,name:x.name}));
-
-    //const tags = (await fetchJSON(`${wordPressApiUrl}tags`))
-    //    .map(x=>({id:x.id,name:x.name}));
-
     let add_count = 0;
     let update_count = 0;
     let delete_count = 0;
     let match_count = 0;
 
+    //Common Fetch function
     const fetchJSON = async (URL, options) => 
         await fetch(URL,options)
         .then(response => response.ok ? response.json() : Promise.reject(response))
@@ -49,8 +46,22 @@ module.exports = async function (context, req) {
             return Promise.reject(context.res.body);
         });
 
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts`,defaultoptions());
+    //List of WP categories
+    const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
+        .map(x=>({id:x.id,name:x.name,slug:x.slug}));
 
+    //ID of category to ignore
+    const ignoreCategoryId = categories.find(x=>x.slug===ignoreCategorySlug).id;
+
+    //const tags = (await fetchJSON(`${wordPressApiUrl}tags`))
+    //    .map(x=>({id:x.id,name:x.name}));
+
+
+    //Query WP files
+    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts`,defaultoptions())
+        .filter(x=>!x.categories.includes(ignoreCategoryId));
+
+    //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
         sourcefile['filename'] = sourcefile.slug;
 
@@ -61,9 +72,11 @@ module.exports = async function (context, req) {
             +sourcefile.content.rendered;
     });
 
+    //Query GitHub files
     const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${githubBranch}`,defaultoptions()))
         .filter(x=>x.type==='file'&&x.name.endsWith('.html')&&!ignoreFiles.includes(x.name)); 
 
+    //Add custom columns to targetfile data
     targetfiles.forEach(x=>x['filename']=x.name.split('.')[0]);
     
     //Files to delete
@@ -127,6 +140,7 @@ module.exports = async function (context, req) {
         }
     }
 
+    //Add to log
     const log = {
         started,
         completed: getPacificTimeNow(),
@@ -155,7 +169,6 @@ function getPacificTimeNow() {
     usaTime = new Date(usaTime);
     return usaTime.toLocaleString();
 }
-
 
 function authheader() {
     return {
