@@ -64,40 +64,67 @@ module.exports = async function (context, req) {
             body: JSON.stringify(bodyJSON)
         });
 
+    const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${githubBranch}`,defaultoptions())
+        .then(response => response.ok ? response.json() : []);
+
     //List of WP attachments
     const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
         .filter(x=>x.post)
 
     attachment_count = sourceattachments.length;
 
-    const targetattachments = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${githubBranch}`,defaultoptions())
-        .then(response => response.ok ? response.json() : []);
+    let sourceAttachmentFiles = [];
 
     for (const sourceattachment of sourceattachments) {
         for (const sizename of Object.keys(sourceattachment.media_details.sizes)) {
-            const sourceSize = sourceattachment.media_details.sizes[sizename];
+            const sourcefile = sourceattachment.media_details.sizes[sizename];
 
             //flatten the file path
-            const newFilePath = `${githubImagesTargetFolder}/wp-content/uploads/${sourceSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
-
-            //If this file isn't there, add it
-            if(!targetattachments.find(x=>x.path===newFilePath)) {
-                const filebytes =  await fetch(`${wordPressUrl}${sourceSize.source_url}`);
-                const buffer = await filebytes.arrayBuffer();
-                const base64 =  Buffer.from(buffer).toString('base64');
-
-                const fileAddOptions = getPutOptions({
-                    "message": `Add file ${sourceSize.file}`,
-                    "committer": committer,
-                    "branch": githubBranch,
-                    "content": base64
-                });
-            
-                await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, fileAddOptions)
-                    .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceSize.file}`);attachment_add_count++;});
-            }
+            sourcefile.newpath = `${githubImagesTargetFolder}/wp-content/uploads/${sourcefile.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
+            sourceAttachmentFiles.push(sourcefile);
         }
     }
+
+    //Make sure all the sourcefiles get added
+    for (const sourcefile of sourceAttachmentFiles) {
+        //If this file isn't there, add it
+        if(!targetAttachmentFiles.find(x=>x.path===sourcefile.newpath)) {
+            const filebytes =  await fetch(`${wordPressUrl}${sourcefile.source_url}`);
+            const buffer = await filebytes.arrayBuffer();
+            const base64 =  Buffer.from(buffer).toString('base64');
+
+            const fileAddOptions = getPutOptions({
+                "message": `Add file ${sourcefile.file}`,
+                "committer": committer,
+                "branch": githubBranch,
+                "content": base64
+            });
+        
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourcefile.newpath}`, fileAddOptions)
+                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourcefile.file}`);attachment_add_count++;});
+        }
+    }
+
+    //Remove extra files
+    for (const targetfile of targetAttachmentFiles) {
+        //If this file isn't there, add it
+        if(!sourceAttachmentFiles.find(x=>targetfile.path===x.newpath)) {
+            const options = {
+                method: 'DELETE',
+                headers: authheader(),
+                body: JSON.stringify({
+                    "message": `Delete ${targetfile.name}`,
+                    "committer": committer,
+                    "branch": githubBranch,
+                    "sha": targetfile.sha
+                })
+            };
+    
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, options)
+                .then(() => {console.log(`ATTACHMENT DELETE Success: ${targetfile.name}`);attachment_delete_count++;})
+        }
+    }
+
     
     //List of WP categories
     const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
