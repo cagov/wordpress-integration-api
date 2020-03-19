@@ -8,12 +8,15 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const githubBranch = 'master';
-//const githubBranch = 'synctest';
+//const githubBranch = 'master';
+const githubBranch = 'synctest';
 
 const githubSyncFolder = 'pages'; //no slash at the end
-//const githubImagesFolder = 'pages/wp-content'; //no slash at the end
-const wordPressApiUrl = 'https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/';
+const githubImagesTargetFolder = 'src/img'; //no slash at the end
+const wpFilePrefix = '/wp-content/uploads';
+const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpFilePrefix}`; //no slash at the end
+const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
+const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const defaultTags = ['covid19'];
 const ignoreFiles = ['index.html'];
 
@@ -33,8 +36,11 @@ module.exports = async function (context, req) {
     let update_count = 0;
     let delete_count = 0;
     let match_count = 0;
+    let attachment_count = 0;
+    let attachment_add_count = 0;
+    let attachment_delete_count = 0;
 
-    //Common Fetch function
+    //Common Fetch functions
     const fetchJSON = async (URL, options) => 
         await fetch(URL,options)
         .then(response => response.ok ? response.json() : Promise.reject(response))
@@ -50,22 +56,58 @@ module.exports = async function (context, req) {
             return Promise.reject(context.res.body);
         });
 
+    //Common function for creating a PUT option
+    const getPutOptions = bodyJSON =>
+        ({
+            method: 'PUT',
+            headers: authheader(),
+            body: JSON.stringify(bodyJSON)
+        });
+
     //List of WP attachments
-    //const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
-    //    .filter(x=>x.post)
+    const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
+        .filter(x=>x.post)
 
-    //const targetattachments = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesFolder}?ref=${githubBranch}`,defaultoptions()))
+    attachment_count = sourceattachments.length;
+
+    const targetattachments = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${githubBranch}`,defaultoptions())
+        .then(response => response.ok ? response.json() : []);
+
+    for (const sourceattachment of sourceattachments) {
+        let sizearray = [];
+        if(sourceattachment.media_details.sizes.full)
+            sizearray.push(sourceattachment.media_details.sizes.full);
+        if(sourceattachment.media_details.sizes.medium)
+            sizearray.push(sourceattachment.media_details.sizes.medium);
+
+        for (const sourceSize of sizearray) {
+
+//TODO: IF THE FILE Isn't already there....
+        const newFilePath = '/wp-content/uploads/'+sourceSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-');
+        const newFileName = sourceSize.file;
+
+        const filebytes =  await fetch(`${wordPressUrl}${newFilePath}`);
+        const buffer = await filebytes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+
+        const fileAddOptions = getPutOptions({
+            "message": `Add file ${newFileName}`,
+            "committer": committer,
+            "branch": githubBranch,
+            "content": base64
+         });
 
 
-    //for (const sourceattachment of sourceattachments) {
+
                     //ADD
        // const newFilePath = `${githubSyncFolder}/${sourcefile.filename}.html`;
      //   body.message=`ADD ${newFilePath}`;
         ///wp-content/uploads/2020/03/Screen-Shot-2020-03-18-at-12.19.25-PM-1024x672.png
         
-     //   await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getOptions(body))
-        //    .then(() => {console.log(`ADD Success: ${newFilePath}`);add_count++;})
-    //}
+        await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesTargetFolder}${newFilePath}`, fileAddOptions)
+            .then(() => {console.log(`ATTACHMENT ADD Success: ${newFileName}`);attachment_add_count++;})
+        }
+    }
 
 
 
@@ -82,8 +124,8 @@ module.exports = async function (context, req) {
 
 
     //Query WP files
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
-    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
+    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
+    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
@@ -125,13 +167,6 @@ module.exports = async function (context, req) {
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
         const base64 = Base64.encode(sourcefile.html);
-
-        const getOptions = bodyJSON =>
-            ({
-                method: 'PUT',
-                headers: authheader(),
-                body: JSON.stringify(bodyJSON)
-            });
         
         let body = {
             "message": "",
@@ -149,7 +184,7 @@ module.exports = async function (context, req) {
                 body.message=`Update ${targetfile.path}`;
                 body['sha']=targetfile.sha;
 
-                await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getOptions(body))
+                await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
                     .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
             } else {
                 console.log(`Files matched: ${targetfile.path}`);
@@ -160,7 +195,7 @@ module.exports = async function (context, req) {
             const newFilePath = `${githubSyncFolder}/${sourcefile.filename}.html`;
             body.message=`ADD ${newFilePath}`;
             
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getOptions(body))
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
                 .then(() => {console.log(`ADD Success: ${newFilePath}`);add_count++;})
         }
     }
@@ -176,6 +211,9 @@ module.exports = async function (context, req) {
     if(add_count>0) log.add_count = add_count;
     if(update_count>0) log.update_count = update_count;
     if(delete_count>0) log.delete_count = delete_count;
+    if(attachment_count>0) log.attachment_count = attachment_count;
+    if(attachment_add_count>0) log.attachment_add_count = attachment_add_count;
+    if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
 
     pinghistory.unshift(log);
 
