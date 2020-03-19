@@ -19,15 +19,8 @@ const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const defaultTags = ['covid19'];
 const ignoreFiles = ['index.html'];
-
 const githubApiContents = 'contents/';
 const ignoreCategorySlug = 'do-not-deploy';
-
-//attachments here...sourcefiles[1]._links['wp:attachment'][0].href
-
-//sourcefiles[0]._links['wp:attachment'][0].href
-//https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/media?parent=375
-//sourcefiles[0].id
 
 module.exports = async function (context, req) {
     //Logging data
@@ -73,7 +66,7 @@ module.exports = async function (context, req) {
 
     attachment_count = sourceattachments.length;
 
-    let sourceAttachmentFiles = [];
+    const sourceAttachmentFiles = [];
 
     for (const sourceattachment of sourceattachments) {
         for (const sizename of Object.keys(sourceattachment.media_details.sizes)) {
@@ -143,14 +136,26 @@ module.exports = async function (context, req) {
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
-        sourcefile['filename'] = sourcefile.slug;
+        sourcefile.filename = sourcefile.slug;
 
         const pagetitle = sourcefile.title.rendered;
         const meta = sourcefile.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim();
         const matchedtags = sourcefile.tags.map(x=>taglist.find(y=>y.id===x).name);
 
-        sourcefile['html'] = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\n---\n`
-            +sourcefile.content.rendered;
+        let content = sourcefile.content.rendered;
+
+        //if there are attachments, fix the links
+        for (const attachment of sourceattachments.filter(sa=>sa.post===sourcefile.id)) {
+            for (const sizename of Object.keys(attachment.media_details.sizes)) {
+                const filesize = attachment.media_details.sizes[sizename];
+
+                content = content.replace(new RegExp(filesize.source_url, 'g'),filesize.newpath.replace(/^src/,''));
+            }
+        }
+
+
+
+        sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\n---\n${content}`;
     });
 
     //Query GitHub files
@@ -158,7 +163,7 @@ module.exports = async function (context, req) {
         .filter(x=>x.type==='file'&&x.name.endsWith('.html')&&!ignoreFiles.includes(x.name)); 
 
     //Add custom columns to targetfile data
-    targetfiles.forEach(x=>x['filename']=x.name.split('.')[0]);
+    targetfiles.forEach(x=>x.filename=x.name.split('.')[0]);
     
     //Files to delete
     for(const deleteTarget of targetfiles.filter(x=>!sourcefiles.find(y=>x.filename===y.filename))) {
