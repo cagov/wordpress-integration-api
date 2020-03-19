@@ -8,8 +8,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-//const githubBranch = 'master';
-const githubBranch = 'synctest';
+const githubBranch = 'master';
+//const githubBranch = 'synctest';
 
 const githubSyncFolder = 'pages'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -25,13 +25,7 @@ const ignoreCategorySlug = 'do-not-deploy';
 module.exports = async function (context, req) {
     //Logging data
     const started = getPacificTimeNow();
-    let add_count = 0;
-    let update_count = 0;
-    let delete_count = 0;
-    let match_count = 0;
-    let attachment_count = 0;
-    let attachment_add_count = 0;
-    let attachment_delete_count = 0;
+    let add_count = 0, update_count = 0, delete_count = 0, match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
 
     //Common Fetch functions
     const fetchJSON = async (URL, options) => 
@@ -57,67 +51,24 @@ module.exports = async function (context, req) {
             body: JSON.stringify(bodyJSON)
         });
 
+    //Lift of github attachments
     const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${githubBranch}`,defaultoptions())
         .then(response => response.ok ? response.json() : []);
 
     //List of WP attachments
-    const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
+    const sourceAttachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
         .filter(x=>x.post)
 
-    attachment_count = sourceattachments.length;
-
-    const sourceAttachmentFiles = [];
-
-    for (const sourceattachment of sourceattachments) {
-        for (const sizename of Object.keys(sourceattachment.media_details.sizes)) {
-            const sourcefile = sourceattachment.media_details.sizes[sizename];
+    //List of individual WP attachment sized
+    const sourceAttachmentSizes = [];
+    for (const sourceAttachment of sourceAttachments)
+        for (const sizename of Object.keys(sourceAttachment.media_details.sizes)) {
+            const sourceAttachmentSize = sourceAttachment.media_details.sizes[sizename];
 
             //flatten the file path
-            sourcefile.newpath = `${githubImagesTargetFolder}/wp-content/uploads/${sourcefile.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
-            sourceAttachmentFiles.push(sourcefile);
+            sourceAttachmentSize.newpath = `${githubImagesTargetFolder}/wp-content/uploads/${sourceAttachmentSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
+            sourceAttachmentSizes.push(sourceAttachmentSize);
         }
-    }
-
-    //Make sure all the sourcefiles get added
-    for (const sourcefile of sourceAttachmentFiles) {
-        //If this file isn't there, add it
-        if(!targetAttachmentFiles.find(x=>x.path===sourcefile.newpath)) {
-            const filebytes =  await fetch(`${wordPressUrl}${sourcefile.source_url}`);
-            const buffer = await filebytes.arrayBuffer();
-            const base64 =  Buffer.from(buffer).toString('base64');
-
-            const fileAddOptions = getPutOptions({
-                "message": `Add file ${sourcefile.file}`,
-                "committer": committer,
-                "branch": githubBranch,
-                "content": base64
-            });
-        
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourcefile.newpath}`, fileAddOptions)
-                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourcefile.file}`);attachment_add_count++;});
-        }
-    }
-
-    //Remove extra files
-    for (const targetfile of targetAttachmentFiles) {
-        //If this file isn't there, add it
-        if(!sourceAttachmentFiles.find(x=>targetfile.path===x.newpath)) {
-            const options = {
-                method: 'DELETE',
-                headers: authheader(),
-                body: JSON.stringify({
-                    "message": `Delete ${targetfile.name}`,
-                    "committer": committer,
-                    "branch": githubBranch,
-                    "sha": targetfile.sha
-                })
-            };
-    
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, options)
-                .then(() => {console.log(`ATTACHMENT DELETE Success: ${targetfile.name}`);attachment_delete_count++;})
-        }
-    }
-
     
     //List of WP categories
     const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
@@ -126,13 +77,14 @@ module.exports = async function (context, req) {
     //ID of category to ignore
     const ignoreCategoryId = categories.find(x=>x.slug===ignoreCategorySlug).id;
 
+    //List of WP Tags
     const taglist = (await fetchJSON(`${wordPressApiUrl}tags`))
         .map(x=>({id:x.id,name:x.name}));
 
 
     //Query WP files
-    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
+    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
+    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
@@ -145,18 +97,59 @@ module.exports = async function (context, req) {
         let content = sourcefile.content.rendered;
 
         //if there are attachments, fix the links
-        for (const attachment of sourceattachments.filter(sa=>sa.post===sourcefile.id)) {
+        for (const attachment of sourceAttachments.filter(sa=>sa.post===sourcefile.id))
             for (const sizename of Object.keys(attachment.media_details.sizes)) {
                 const filesize = attachment.media_details.sizes[sizename];
 
-                content = content.replace(new RegExp(filesize.source_url, 'g'),filesize.newpath.replace(/^src/,''));
+                if(content.match(filesize.source_url)) {
+                    content = content.replace(new RegExp(filesize.source_url, 'g'),filesize.newpath.replace(/^src/,''));
+                    filesize.used = true;
+                    attachments_used_count++;
+                }
             }
-        }
-
-
 
         sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\n---\n${content}`;
     });
+
+    
+    //Make sure all the attachment sizes get added
+    for (const sourceAttachmentSize of sourceAttachmentSizes)
+        //If this attachment size was used, and isn't there, add it
+        if(sourceAttachmentSize.used && !targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath)) {
+            const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
+            const buffer = await filebytes.arrayBuffer();
+            const base64 =  Buffer.from(buffer).toString('base64');
+
+            const fileAddOptions = getPutOptions({
+                "message": `Add file ${sourceAttachmentSize.file}`,
+                "committer": committer,
+                "branch": githubBranch,
+                "content": base64
+            });
+        
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
+                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
+        }
+
+    //Remove extra attachment sizes
+    for (const targetAttachmentSize of targetAttachmentFiles)
+        //If this file shouldn't be there, remove it
+        if(!sourceAttachmentSizes.find(x=>targetAttachmentSize.path===x.newpath&&x.used)) {
+            const options = {
+                method: 'DELETE',
+                headers: authheader(),
+                body: JSON.stringify({
+                    "message": `Delete ${targetAttachmentSize.name}`,
+                    "committer": committer,
+                    "branch": githubBranch,
+                    "sha": targetAttachmentSize.sha
+                })
+            };
+    
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${targetAttachmentSize.path}`, options)
+                .then(() => {console.log(`ATTACHMENT DELETE Success: ${targetAttachmentSize.name}`);attachment_delete_count++;})
+        }
+
 
     //Query GitHub files
     const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${githubBranch}`,defaultoptions()))
@@ -230,9 +223,10 @@ module.exports = async function (context, req) {
     if(add_count>0) log.add_count = add_count;
     if(update_count>0) log.update_count = update_count;
     if(delete_count>0) log.delete_count = delete_count;
-    if(attachment_count>0) log.attachment_count = attachment_count;
     if(attachment_add_count>0) log.attachment_add_count = attachment_add_count;
     if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
+    if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
+
 
     pinghistory.unshift(log);
 
