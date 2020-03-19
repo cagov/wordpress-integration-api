@@ -8,10 +8,11 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-//const githubBranch = 'master';
-const githubBranch = 'synctest';
+const githubBranch = 'master';
+//const githubBranch = 'synctest';
+
 const githubSyncFolder = 'pages'; //no slash at the end
-const githubImagesFolder = 'pages/wp-content'; //no slash at the end
+//const githubImagesFolder = 'pages/wp-content'; //no slash at the end
 const wordPressApiUrl = 'https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/';
 const defaultTags = ['covid19'];
 const ignoreFiles = ['index.html'];
@@ -50,13 +51,13 @@ module.exports = async function (context, req) {
         });
 
     //List of WP attachments
-    const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
-        .filter(x=>x.post)
+    //const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
+    //    .filter(x=>x.post)
 
-    const targetattachments = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesFolder}?ref=${githubBranch}`,defaultoptions()))
+    //const targetattachments = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesFolder}?ref=${githubBranch}`,defaultoptions()))
 
 
-    for (const sourceattachment of sourceattachments) {
+    //for (const sourceattachment of sourceattachments) {
                     //ADD
        // const newFilePath = `${githubSyncFolder}/${sourcefile.filename}.html`;
      //   body.message=`ADD ${newFilePath}`;
@@ -64,7 +65,7 @@ module.exports = async function (context, req) {
         
      //   await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getOptions(body))
         //    .then(() => {console.log(`ADD Success: ${newFilePath}`);add_count++;})
-    }
+    //}
 
 
 
@@ -81,8 +82,8 @@ module.exports = async function (context, req) {
 
 
     //Query WP files
-    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
+    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
+    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
