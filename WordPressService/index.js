@@ -74,43 +74,30 @@ module.exports = async function (context, req) {
         .then(response => response.ok ? response.json() : []);
 
     for (const sourceattachment of sourceattachments) {
-        let sizearray = [];
-        if(sourceattachment.media_details.sizes.full)
-            sizearray.push(sourceattachment.media_details.sizes.full);
-        if(sourceattachment.media_details.sizes.medium)
-            sizearray.push(sourceattachment.media_details.sizes.medium);
+        for (const sizename of Object.keys(sourceattachment.media_details.sizes)) {
+            const sourceSize = sourceattachment.media_details.sizes[sizename];
 
-        for (const sourceSize of sizearray) {
+            //flatten the file path
+            const newFilePath = `${githubImagesTargetFolder}/wp-content/uploads/${sourceSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
 
-//TODO: IF THE FILE Isn't already there....
-        const newFilePath = '/wp-content/uploads/'+sourceSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-');
-        const newFileName = sourceSize.file;
+            //If this file isn't there, add it
+            if(!targetattachments.find(x=>x.path===newFilePath)) {
+                const filebytes =  await fetch(`${wordPressUrl}${sourceSize.source_url}`);
+                const buffer = await filebytes.arrayBuffer();
+                const base64 =  Buffer.from(buffer).toString('base64');
 
-        const filebytes =  await fetch(`${wordPressUrl}${newFilePath}`);
-        const buffer = await filebytes.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-
-        const fileAddOptions = getPutOptions({
-            "message": `Add file ${newFileName}`,
-            "committer": committer,
-            "branch": githubBranch,
-            "content": base64
-         });
-
-
-
-                    //ADD
-       // const newFilePath = `${githubSyncFolder}/${sourcefile.filename}.html`;
-     //   body.message=`ADD ${newFilePath}`;
-        ///wp-content/uploads/2020/03/Screen-Shot-2020-03-18-at-12.19.25-PM-1024x672.png
-        
-        await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesTargetFolder}${newFilePath}`, fileAddOptions)
-            .then(() => {console.log(`ATTACHMENT ADD Success: ${newFileName}`);attachment_add_count++;})
+                const fileAddOptions = getPutOptions({
+                    "message": `Add file ${sourceSize.file}`,
+                    "committer": committer,
+                    "branch": githubBranch,
+                    "content": base64
+                });
+            
+                await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, fileAddOptions)
+                    .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceSize.file}`);attachment_add_count++;});
+            }
         }
     }
-
-
-
     
     //List of WP categories
     const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
