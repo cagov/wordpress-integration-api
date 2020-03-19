@@ -10,7 +10,9 @@ const committer = {
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 const githubBranch = 'master';
 //const githubBranch = 'synctest';
+
 const githubSyncFolder = 'pages'; //no slash at the end
+//const githubImagesFolder = 'pages/wp-content'; //no slash at the end
 const wordPressApiUrl = 'https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/';
 const defaultTags = ['covid19'];
 const ignoreFiles = ['index.html'];
@@ -20,7 +22,9 @@ const ignoreCategorySlug = 'do-not-deploy';
 
 //attachments here...sourcefiles[1]._links['wp:attachment'][0].href
 
-
+//sourcefiles[0]._links['wp:attachment'][0].href
+//https://as-go-covid19-d-001.azurewebsites.net/wp-json/wp/v2/media?parent=375
+//sourcefiles[0].id
 
 module.exports = async function (context, req) {
     //Logging data
@@ -46,6 +50,26 @@ module.exports = async function (context, req) {
             return Promise.reject(context.res.body);
         });
 
+    //List of WP attachments
+    //const sourceattachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
+    //    .filter(x=>x.post)
+
+    //const targetattachments = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesFolder}?ref=${githubBranch}`,defaultoptions()))
+
+
+    //for (const sourceattachment of sourceattachments) {
+                    //ADD
+       // const newFilePath = `${githubSyncFolder}/${sourcefile.filename}.html`;
+     //   body.message=`ADD ${newFilePath}`;
+        ///wp-content/uploads/2020/03/Screen-Shot-2020-03-18-at-12.19.25-PM-1024x672.png
+        
+     //   await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getOptions(body))
+        //    .then(() => {console.log(`ADD Success: ${newFilePath}`);add_count++;})
+    //}
+
+
+
+    
     //List of WP categories
     const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
         .map(x=>({id:x.id,name:x.name,slug:x.slug}));
@@ -53,13 +77,13 @@ module.exports = async function (context, req) {
     //ID of category to ignore
     const ignoreCategoryId = categories.find(x=>x.slug===ignoreCategorySlug).id;
 
-    //const tags = (await fetchJSON(`${wordPressApiUrl}tags`))
-    //    .map(x=>({id:x.id,name:x.name}));
+    const taglist = (await fetchJSON(`${wordPressApiUrl}tags`))
+        .map(x=>({id:x.id,name:x.name}));
 
-    const sourcefiles2 = (await fetchJSON(`${wordPressApiUrl}posts?per_page=100`))
 
     //Query WP files
     const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
+    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
@@ -67,8 +91,9 @@ module.exports = async function (context, req) {
 
         const pagetitle = sourcefile.title.rendered;
         const meta = sourcefile.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim();
+        const matchedtags = sourcefile.tags.map(x=>taglist.find(y=>y.id===x).name);
 
-        sourcefile['html'] = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.join(',')}"\n---\n`
+        sourcefile['html'] = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\n---\n`
             +sourcefile.content.rendered;
     });
 
