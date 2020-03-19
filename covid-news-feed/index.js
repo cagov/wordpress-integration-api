@@ -49,8 +49,6 @@ module.exports = async function(context, myTimer) {
           return old.name === md5(newItem.url)+'.html';
         }).length < 1);
       });
-      console.log('found existing '+values[3].length)
-      console.log('filtered is: '+newCDPHItems.length)
 
       for(let i = 0;i<newCDPHItems.length;i++) {
         let item = newCDPHItems[i];
