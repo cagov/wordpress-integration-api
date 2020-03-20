@@ -43,10 +43,15 @@ function parseItem(news) {
     let delimiter = ', 2020';
     if(desc.indexOf(delimiter) > -1) {
       let pieces = desc.split(delimiter);
-      newsObject.date = pieces[0].trim()+delimiter;
-      newsObject.description = pieces[1].trim();
-      if(newsObject.description.indexOf('- ') == 0) {
-        newsObject.description = newsObject.description.replace('- ','').replace('-&nbsp;','').replace('– ','');
+      let parsedDate = new Date(pieces[0].trim()+delimiter)
+      if(parsedDate && parsedDate.getTime() > 1577865600000 && parsedDate.getTime() < 1609401600000) {
+        newsObject.date = parsedDate.toISOString();
+      } else {
+        console.log('date fail')
+      }
+      let description = pieces[1].trim();
+      if(description.indexOf('-') === 0 || description.indexOf('–') === 0) {
+        newsObject.description = description.replace('-','').replace('-&nbsp;','').replace('–','').replace('– ​','').trim();
       }
     }
     if(newsObject.date) {
