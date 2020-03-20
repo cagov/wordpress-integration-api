@@ -1,6 +1,6 @@
 const md5 = require('md5');
 const githubApiUrl = "https://api.github.com/repos/cagov/covid19/";
-const githubBranch = "staging";
+const githubBranch = "master";
 const govArticleLoc = 'pages/guidancefeed/gov';
 const cdphArticleLoc = 'pages/guidancefeed/cdph';
 const addToGithub = require('./write/git.js');
