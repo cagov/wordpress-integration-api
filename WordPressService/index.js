@@ -8,8 +8,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const githubBranch = 'master';
-//const githubBranch = 'synctest';
+const githubBranches = ['master','staging'];
+//const githubBranches = ['synctest'];
 
 const githubSyncFolder = 'pages'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -23,6 +23,9 @@ const githubApiContents = 'contents/';
 const ignoreCategorySlug = 'do-not-deploy';
 
 module.exports = async function (context, req) {
+
+for (const githubBranch of githubBranches) {
+
     //Logging data
     const started = getPacificTimeNow();
     let add_count = 0, update_count = 0, delete_count = 0, match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
@@ -108,7 +111,7 @@ module.exports = async function (context, req) {
                 }
             }
 
-        sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\n---\n${content}`;
+        sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\naddtositemap: true\n---\n${content}`;
     });
 
     
@@ -214,6 +217,7 @@ module.exports = async function (context, req) {
 
     //Add to log
     const log = {
+        branch: githubBranch,
         started,
         completed: getPacificTimeNow(),
         match_count
@@ -227,8 +231,8 @@ module.exports = async function (context, req) {
     if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
     if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
 
-
     pinghistory.unshift(log);
+} //Branch
 
     context.res = {
         body: {pinghistory},
