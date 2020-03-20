@@ -25,6 +25,7 @@ const getExistingCDPHNews = new Promise((resolve, reject) => {
 module.exports = async function(context, myTimer) {
   Promise.all([getGovNews, getExistingGovNews, getCDPHNews, getExistingCDPHNews]).then( 
     async function(values) {
+      let writtenFileCount = 0;
       let newGovItems = values[0].filter(newItem => {
         return(values[1].filter(old => {
           return old.name === newItem.id+'.html';
@@ -36,6 +37,7 @@ module.exports = async function(context, myTimer) {
         await new Promise((resolve, reject) => {
           addToGithub(createGovItem(item), githubBranch, githubApiUrl, govArticleLoc, (result) => {
             if(result) {
+              writtenFileCount++;
               resolve(result);
             } else {
               reject(result);
@@ -55,6 +57,7 @@ module.exports = async function(context, myTimer) {
         await new Promise((resolve, reject) => {
           addToGithub(createCDPHItem(item), githubBranch, githubApiUrl, cdphArticleLoc, (result) => {
             if(result) {
+              writtenFileCount++;
               resolve(result);
             } else {
               reject(result);
@@ -62,6 +65,14 @@ module.exports = async function(context, myTimer) {
           })
         })
       }
+      // respond with success here
+      context.res = {
+        body: {writtenFileCount},
+        headers: {
+          'Content-Type' : 'application/json'
+        }
+      };
+      context.done();
     }
   );
 };
