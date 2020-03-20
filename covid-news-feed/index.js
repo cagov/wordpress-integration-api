@@ -22,7 +22,7 @@ const getExistingCDPHNews = new Promise((resolve, reject) => {
   gitNews(resolve,reject, githubBranch, githubApiUrl, cdphArticleLoc);
 });
 
-module.exports = async function(context, req) {
+module.exports = async function(context, myTimer) {
   await Promise.all([getGovNews, getExistingGovNews, getCDPHNews, getExistingCDPHNews]).then( 
     async function(values) {
       let writtenFileCount = 0;
