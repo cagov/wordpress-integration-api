@@ -8,7 +8,7 @@ module.exports =  async function(success,failure) {
     .then(res => res.ok ? res.json() : Promise.reject(res))
     .then(json => {
       json.forEach( (news) => {
-        if(news.slug.indexOf('covid') > -1 || news.slug.indexOf('corona') > -1 || news.slug.indexOf('stay-at-home') > -1) {
+        if(news.content.rendered.toLowerCase().indexOf('covid') > -1 || news.content.rendered.toLowerCase().indexOf('corona') > -1 || news.slug.indexOf('stay-at-home') > -1) {
           newStuff.push(news);
         }
       })
