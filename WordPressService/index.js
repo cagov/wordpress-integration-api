@@ -8,8 +8,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-//const githubBranches = ['master','staging'];
-const githubBranches = ['synctest'];
+const githubBranches = ['master','staging'];
+//const githubBranches = ['synctest'];
 
 const githubSyncFolder = 'pages'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
