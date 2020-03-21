@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 module.exports =  async function(success,failure) {
-  let url = 'https://www.gov.ca.gov/wp-json/wp/v2/posts?per_page=20'
+  let url = 'https://www.gov.ca.gov/wp-json/wp/v2/posts?per_page=25'
   let newStuff = [];
 
   fetch(url)
