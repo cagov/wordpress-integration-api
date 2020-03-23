@@ -59,20 +59,20 @@ for (const githubBranch of githubBranches) {
         .then(response => response.ok ? response.json() : []);
 
     //List of WP attachments
-    const sourceAttachments = (await fetchJSON(`${wordPressApiUrl}media?per_page=100`))
-        .filter(x=>x.post)
+    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?per_page=100`)
+        //.filter(x=>x.post)
 
     //List of individual WP attachment sized
     const sourceAttachmentSizes = [];
     for (const sourceAttachment of sourceAttachments)
-        for (const sizename of Object.keys(sourceAttachment.media_details.sizes)) {
-            const sourceAttachmentSize = sourceAttachment.media_details.sizes[sizename];
+        for (const sizename of sourceAttachment.media_type==='image' ? Object.keys(sourceAttachment.media_details.sizes) : [null]) {
+            const sourceAttachmentSize = sizename ? sourceAttachment.media_details.sizes[sizename] : sourceAttachment;
 
             //flatten the file path
             sourceAttachmentSize.newpath = `${githubImagesTargetFolder}/wp-content/uploads/${sourceAttachmentSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
             sourceAttachmentSizes.push(sourceAttachmentSize);
         }
-    
+
     //List of WP categories
     const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
         .map(x=>({id:x.id,name:x.name,slug:x.slug}));
@@ -86,8 +86,8 @@ for (const githubBranch of githubBranches) {
 
 
     //Query WP files
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`)
-    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories=${ignoreCategoryId}`)
+    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`);
+    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100`);
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
@@ -100,17 +100,13 @@ for (const githubBranch of githubBranches) {
         let content = sourcefile.content.rendered;
 
         //if there are attachments, fix the links
-        for (const attachment of sourceAttachments.filter(sa=>sa.post===sourcefile.id))
-            for (const sizename of Object.keys(attachment.media_details.sizes)) {
-                const filesize = attachment.media_details.sizes[sizename];
-
-                if(content.match(filesize.source_url)) {
-                    content = content.replace(new RegExp(filesize.source_url, 'g'),filesize.newpath.replace(/^src/,''));
-                    filesize.used = true;
-                    attachments_used_count++;
-                }
+        for (const filesize of sourceAttachmentSizes)
+            if(content.match(filesize.source_url)) {
+                content = content.replace(new RegExp(filesize.source_url, 'g'),filesize.newpath.replace(/^src/,''));
+                filesize.used = true;
+                attachments_used_count++;
             }
-
+            
         sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\naddtositemap: true\n---\n${content}`;
     });
 
@@ -122,16 +118,17 @@ for (const githubBranch of githubBranches) {
             const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
             const buffer = await filebytes.arrayBuffer();
             const base64 =  Buffer.from(buffer).toString('base64');
+            const friendlyname = sourceAttachmentSize.file || sourceAttachmentSize.newpath;
 
             const fileAddOptions = getPutOptions({
-                "message": `Add file ${sourceAttachmentSize.file}`,
+                "message": `Add file ${friendlyname}`,
                 "committer": committer,
                 "branch": githubBranch,
                 "content": base64
             });
         
             await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
-                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
+                .then(() => {console.log(`ATTACHMENT ADD Success: ${friendlyname}`);attachment_add_count++;});
         }
 
     //Remove extra attachment sizes
