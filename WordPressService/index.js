@@ -13,8 +13,8 @@ const githubBranches = ['master','staging'];
 
 const githubSyncFolder = 'pages'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
-const wpFilePrefix = '/wp-content/uploads';
-const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpFilePrefix}`; //no slash at the end
+const wpTargetFilePrefix = '/wp';
+const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix}`; //no slash at the end
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const defaultTags = ['covid19'];
@@ -68,8 +68,13 @@ for (const githubBranch of githubBranches) {
         for (const sizename of sourceAttachment.media_type==='image' ? Object.keys(sourceAttachment.media_details.sizes) : [null]) {
             const sourceAttachmentSize = sizename ? sourceAttachment.media_details.sizes[sizename] : sourceAttachment;
 
+
+            if (!sourceAttachmentSize.file)
+                sourceAttachmentSize.file = `${sourceAttachmentSize.slug}.${sourceAttachmentSize.source_url.split('.').pop()}`
+            
             //flatten the file path
-            sourceAttachmentSize.newpath = `${githubImagesTargetFolder}/wp-content/uploads/${sourceAttachmentSize.source_url.replace('/wp-content/uploads/','').replace(/\//g,'-')}`;
+            sourceAttachmentSize.newpath = `${githubImagesTargetFolder}${wpTargetFilePrefix}/${sourceAttachmentSize.file}`;
+            
             sourceAttachmentSizes.push(sourceAttachmentSize);
         }
 
@@ -118,17 +123,16 @@ for (const githubBranch of githubBranches) {
             const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
             const buffer = await filebytes.arrayBuffer();
             const base64 =  Buffer.from(buffer).toString('base64');
-            const friendlyname = sourceAttachmentSize.file || sourceAttachmentSize.newpath;
 
             const fileAddOptions = getPutOptions({
-                "message": `Add file ${friendlyname}`,
+                "message": `Add file ${sourceAttachmentSize.file}`,
                 "committer": committer,
                 "branch": githubBranch,
                 "content": base64
             });
         
             await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
-                .then(() => {console.log(`ATTACHMENT ADD Success: ${friendlyname}`);attachment_add_count++;});
+                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
         }
 
     //Remove extra attachment sizes
