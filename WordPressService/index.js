@@ -34,9 +34,9 @@ module.exports = async function (context, req) {
     //Common Fetch functions
     const fetchJSON = async (URL, options) => 
         await fetch(URL,options)
-        .then(response => response.ok ? response.json() : Promise.reject(response))
+        .then(response => response.ok ? (response.status===200 ? response.json() : null) : Promise.reject(response))
         .catch(async response => {
-            const json = await response.json()
+            const json = await (response.json ? response.json() : null);
 
             context.res = {
                 body: `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`
