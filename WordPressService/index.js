@@ -8,8 +8,10 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const githubBranches = ['master','staging'];
-//const githubBranches = ['synctest'];
+const githubBranch = 'master';
+const githubMergeTarget = 'staging';
+//const githubBranch = 'synctest2';
+//const githubMergeTarget = 'synctest2_margetarget';
 
 const githubSyncFolder = 'pages'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -18,13 +20,12 @@ const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const defaultTags = ['covid19'];
-const ignoreFiles = ['index.html','latest-news.html','search.html'];
+const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
+const githubApiMerges = 'merges';
 const ignoreCategorySlug = 'do-not-deploy';
 
 module.exports = async function (context, req) {
-
-for (const githubBranch of githubBranches) {
 
     //Logging data
     const started = getPacificTimeNow();
@@ -233,7 +234,23 @@ for (const githubBranch of githubBranches) {
     if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
 
     pinghistory.unshift(log);
-} //Branch
+//Branch done
+
+//Merge
+const mergeOptions = {
+    method: 'POST',
+    headers: authheader(),
+    body: JSON.stringify({
+        committer,
+        base: githubMergeTarget,
+        head: githubBranch,
+        commit_message: `Merge branch '${githubBranch}' into '${githubMergeTarget}'`
+    })
+};
+
+await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+    .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${githubBranch}`);})
+//End Merge
 
     context.res = {
         body: {pinghistory},
