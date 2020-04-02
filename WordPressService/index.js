@@ -18,7 +18,7 @@ const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const defaultTags = ['covid19'];
-const ignoreFiles = ['index.html','latest-news.html','search.html'];
+const ignoreFiles = ['index.html','latest-news.html','search.html','sign-up-for-county-alerts.html'];
 const githubApiContents = 'contents/';
 const ignoreCategorySlug = 'do-not-deploy';
 
