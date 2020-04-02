@@ -10,8 +10,7 @@ const committer = {
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 const githubBranch = 'master';
 const githubMergeTarget = 'staging';
-//const githubBranch = 'synctest2';
-//const githubMergeTarget = 'synctest2_margetarget';
+//const githubBranch = 'synctest2', githubMergeTarget = 'synctest2_margetarget';
 
 const githubSyncFolder = 'pages'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
