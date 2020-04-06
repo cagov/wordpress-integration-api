@@ -10,19 +10,20 @@ const committer = {
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 const githubBranch = 'master';
 const githubMergeTarget = 'staging';
-//const githubBranch = 'synctest2', githubMergeTarget = 'synctest2_margetarget';
+//const githubBranch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
-const githubSyncFolder = 'pages'; //no slash at the end
+const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
 const wpTargetFilePrefix = '/wp';
 const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix}`; //no slash at the end
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
-const defaultTags = ['covid19'];
+const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
 const githubApiMerges = 'merges';
-const ignoreCategorySlug = 'do-not-deploy';
+const tag_ignore = 'do-not-deploy';
+const tag_fragment = 'fragment';
 
 module.exports = async function (context, req) {
 
@@ -83,7 +84,7 @@ module.exports = async function (context, req) {
         .map(x=>({id:x.id,name:x.name,slug:x.slug}));
 
     //ID of category to ignore
-    const ignoreCategoryId = categories.find(x=>x.slug===ignoreCategorySlug).id;
+    const ignoreCategoryId = categories.find(x=>x.slug===tag_ignore).id;
 
     //List of WP Tags
     const taglist = (await fetchJSON(`${wordPressApiUrl}tags`))
@@ -111,8 +112,10 @@ module.exports = async function (context, req) {
                 filesize.used = true;
                 attachments_used_count++;
             }
-            
-        sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\naddtositemap: true\n---\n${content}`;
+
+        sourcefile.html = matchedtags.includes(tag_fragment) 
+            ? content
+            : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: ["${defaultTags.concat(matchedtags).toString()}"]\naddtositemap: true\n---\n${content}`;
     });
 
     
