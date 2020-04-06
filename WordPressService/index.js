@@ -10,7 +10,7 @@ const committer = {
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 const githubBranch = 'master';
 const githubMergeTarget = 'staging';
-//const githubBranch = 'synctest2', githubMergeTarget = 'synctest2_margetarget';
+//const githubBranch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -115,7 +115,7 @@ module.exports = async function (context, req) {
 
         sourcefile.html = matchedtags.includes(tag_fragment) 
             ? content
-            : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: "${defaultTags.concat(matchedtags).join(',')}"\naddtositemap: true\n---\n${content}`;
+            : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: ["${defaultTags.concat(matchedtags).toString()}"]\naddtositemap: true\n---\n${content}`;
     });
 
     
