@@ -8,8 +8,7 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const branch = 'master';
-const githubMergeTarget = 'staging';
+const branch = 'master', githubMergeTarget = 'staging';
 //const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
@@ -84,7 +83,8 @@ module.exports = async function (context, req) {
         .map(x=>({id:x.id,name:x.name,slug:x.slug}));
 
     //ID of category to ignore
-    const ignoreCategoryId = categories.find(x=>x.slug===tag_ignore).id;
+    const ignoreCategoryId = categories
+        .find(x=>x.slug===tag_ignore).id;
 
     //List of WP Tags
     const taglist = (await fetchJSON(`${wordPressApiUrl}tags`))
@@ -128,7 +128,7 @@ module.exports = async function (context, req) {
             const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
             const buffer = await filebytes.arrayBuffer();
             const content =  Buffer.from(buffer).toString('base64');
-            const message = `Add file ${sourceAttachmentSize.file}`;
+            const message = gitHubMessage('Add file',sourceAttachmentSize.file);
 
             const fileAddOptions = getPutOptions({
                 message,
@@ -145,7 +145,7 @@ module.exports = async function (context, req) {
     for (const targetAttachmentSize of targetAttachmentFiles)
         //If this file shouldn't be there, remove it
         if(!sourceAttachmentSizes.find(x=>targetAttachmentSize.path===x.newpath&&x.used)) {
-            const message = `Delete ${targetAttachmentSize.name}`;
+            const message = gitHubMessage('Delete file',targetAttachmentSize.name);
             const options = {
                 method: 'DELETE',
                 headers: authheader(),
@@ -171,7 +171,7 @@ module.exports = async function (context, req) {
     
     //Files to delete
     for(const deleteTarget of targetfiles.filter(x=>!sourcefiles.find(y=>x.filename===y.filename))) {
-        const message = `Delete ${deleteTarget.path}`;
+        const message = gitHubMessage('Delete page',deleteTarget.name);
         const options = {
             method: 'DELETE',
             headers: authheader(),
@@ -204,7 +204,7 @@ module.exports = async function (context, req) {
             
             if(content!==targetcontent.content.replace(/\n/g,'')) {
                 //Update file
-                body.message=`Update ${targetfile.path}`;
+                body.message=gitHubMessage('Update page',targetfile.name);
                 body.sha=targetfile.sha;
 
                 await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
@@ -215,8 +215,9 @@ module.exports = async function (context, req) {
             }
         } else {
             //ADD
-            const newFilePath = `${githubSyncFolder}/${sourcefile.filename}.html`;
-            body.message=`ADD ${newFilePath}`;
+            const newFileName = `${sourcefile.filename}.html`;
+            const newFilePath = `${githubSyncFolder}/${newFileName}`;
+            body.message=gitHubMessage('Add page',newFileName);
             
             await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
                 .then(() => {console.log(`ADD Success: ${newFilePath}`);add_count++;})
@@ -283,4 +284,8 @@ function authheader() {
 
 function defaultoptions() {
     return {method: 'GET', headers:authheader() }
+}
+
+function gitHubMessage(action, file) {
+    return `${action} - ${file}`;
 }
