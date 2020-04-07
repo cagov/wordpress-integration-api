@@ -226,7 +226,7 @@ module.exports = async function (context, req) {
 
     //Add to log
     const log = {
-        branch: branch,
+        branch,
         started,
         completed: getPacificTimeNow(),
         match_count
