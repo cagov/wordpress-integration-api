@@ -101,7 +101,9 @@ module.exports = async function (context, req) {
 
         const pagetitle = sourcefile.title.rendered;
         const meta = sourcefile.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim();
-        const matchedtags = sourcefile.tags.map(x=>taglist.find(y=>y.id===x).name);
+        const matchedtags = defaultTags.concat(sourcefile.tags.map(x=>taglist.find(y=>y.id===x).name));
+
+        const tagtext = matchedtags.length===0 ? '' : `tags: [${matchedtags.map(x=>`"${x}"`) .join(',')}]\n`;
 
         let content = sourcefile.content.rendered;
 
@@ -115,7 +117,7 @@ module.exports = async function (context, req) {
 
         sourcefile.html = matchedtags.includes(tag_fragment) 
             ? content
-            : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\ntags: ["${defaultTags.concat(matchedtags).toString()}"]\naddtositemap: true\n---\n${content}`;
+            : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
     });
 
     
