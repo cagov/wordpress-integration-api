@@ -115,10 +115,6 @@ module.exports = async function (context, req) {
                 attachments_used_count++;
             }
 
-
-        
-
-
         sourcefile.html = matchedtags.includes(tag_fragment) 
             ? content
             : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
