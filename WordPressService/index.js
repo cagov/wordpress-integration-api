@@ -8,9 +8,9 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const githubBranch = 'master';
+const branch = 'master';
 const githubMergeTarget = 'staging';
-//const githubBranch = 'synctest3', githubMergeTarget = 'synctest3_staging';
+//const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -56,7 +56,7 @@ module.exports = async function (context, req) {
         });
 
     //Lift of github attachments
-    const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${githubBranch}`,defaultoptions())
+    const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
         .then(response => response.ok ? response.json() : []);
 
     //List of WP attachments
@@ -127,13 +127,14 @@ module.exports = async function (context, req) {
         if(sourceAttachmentSize.used && !targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath)) {
             const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
             const buffer = await filebytes.arrayBuffer();
-            const base64 =  Buffer.from(buffer).toString('base64');
+            const content =  Buffer.from(buffer).toString('base64');
+            const message = `Add file ${sourceAttachmentSize.file}`;
 
             const fileAddOptions = getPutOptions({
-                "message": `Add file ${sourceAttachmentSize.file}`,
-                "committer": committer,
-                "branch": githubBranch,
-                "content": base64
+                message,
+                committer,
+                branch,
+                content
             });
         
             await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
@@ -144,13 +145,14 @@ module.exports = async function (context, req) {
     for (const targetAttachmentSize of targetAttachmentFiles)
         //If this file shouldn't be there, remove it
         if(!sourceAttachmentSizes.find(x=>targetAttachmentSize.path===x.newpath&&x.used)) {
+            const message = `Delete ${targetAttachmentSize.name}`;
             const options = {
                 method: 'DELETE',
                 headers: authheader(),
                 body: JSON.stringify({
-                    "message": `Delete ${targetAttachmentSize.name}`,
-                    "committer": committer,
-                    "branch": githubBranch,
+                    message,
+                    committer,
+                    branch,
                     "sha": targetAttachmentSize.sha
                 })
             };
@@ -161,7 +163,7 @@ module.exports = async function (context, req) {
 
 
     //Query GitHub files
-    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${githubBranch}`,defaultoptions()))
+    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${branch}`,defaultoptions()))
         .filter(x=>x.type==='file'&&x.name.endsWith('.html')&&!ignoreFiles.includes(x.name)); 
 
     //Add custom columns to targetfile data
@@ -169,14 +171,15 @@ module.exports = async function (context, req) {
     
     //Files to delete
     for(const deleteTarget of targetfiles.filter(x=>!sourcefiles.find(y=>x.filename===y.filename))) {
+        const message = `Delete ${deleteTarget.path}`;
         const options = {
             method: 'DELETE',
             headers: authheader(),
             body: JSON.stringify({
-                "message": `Delete ${deleteTarget.path}`,
-                "committer": committer,
-                "branch": githubBranch,
-                "sha": deleteTarget.sha
+                message,
+                committer,
+                branch,
+                sha: deleteTarget.sha
             })
         };
 
@@ -187,23 +190,22 @@ module.exports = async function (context, req) {
     //ADD/UPDATE
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
-        const base64 =  Buffer.from(sourcefile.html).toString('base64');
+        const content = Buffer.from(sourcefile.html).toString('base64');
         
         let body = {
-            "message": "",
-            "committer": committer,
-            "branch": githubBranch,
-            "content": base64
+            committer,
+            branch,
+            content
         };
 
         if(targetfile) {
             //UPDATE
             const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
             
-            if(base64!==targetcontent.content.replace(/\n/g,'')) {
+            if(content!==targetcontent.content.replace(/\n/g,'')) {
                 //Update file
                 body.message=`Update ${targetfile.path}`;
-                body['sha']=targetfile.sha;
+                body.sha=targetfile.sha;
 
                 await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
                     .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
@@ -223,7 +225,7 @@ module.exports = async function (context, req) {
 
     //Add to log
     const log = {
-        branch: githubBranch,
+        branch: branch,
         started,
         completed: getPacificTimeNow(),
         match_count
@@ -247,13 +249,13 @@ const mergeOptions = {
     body: JSON.stringify({
         committer,
         base: githubMergeTarget,
-        head: githubBranch,
-        commit_message: `Merge branch '${githubBranch}' into '${githubMergeTarget}'`
+        head: branch,
+        commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
     })
 };
 
 await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-    .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${githubBranch}`);})
+    .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
 //End Merge
 
     context.res = {
