@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { JSDOM } = require("jsdom");
 
 let pinghistory = [];
 
@@ -23,6 +24,7 @@ const githubApiContents = 'contents/';
 const githubApiMerges = 'merges';
 const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
+const tag_table_data = 'table-data';
 
 module.exports = async function (context, req) {
 
@@ -107,6 +109,10 @@ module.exports = async function (context, req) {
 
         let content = sourcefile.content.rendered;
 
+        sourcefile.tags = matchedtags;
+        sourcefile.isFragment = matchedtags.includes(tag_fragment);
+        sourcefile.isTableData = matchedtags.includes(tag_table_data);
+
         //if there are attachments, fix the links
         for (const filesize of sourceAttachmentSizes)
             if(content.match(filesize.source_url)) {
@@ -115,9 +121,12 @@ module.exports = async function (context, req) {
                 attachments_used_count++;
             }
 
-        sourcefile.html = matchedtags.includes(tag_fragment) 
-            ? content
-            : `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
+        if (sourcefile.isTableData)
+            sourcefile.html = JsonFromHtmlTables(content);
+        else if (sourcefile.isFragment)
+            sourcefile.html = content;
+        else 
+            sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
     });
 
     
@@ -164,7 +173,7 @@ module.exports = async function (context, req) {
 
     //Query GitHub files
     const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${branch}`,defaultoptions()))
-        .filter(x=>x.type==='file'&&x.name.endsWith('.html')&&!ignoreFiles.includes(x.name)); 
+        .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
     //Add custom columns to targetfile data
     targetfiles.forEach(x=>x.filename=x.name.split('.')[0]);
@@ -215,7 +224,7 @@ module.exports = async function (context, req) {
             }
         } else {
             //ADD
-            const newFileName = `${sourcefile.filename}.html`;
+            const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
             body.message=gitHubMessage('Add page',newFileName);
             
@@ -289,3 +298,23 @@ function defaultoptions() {
 function gitHubMessage(action, file) {
     return `${action} - ${file}`;
 }
+
+function JsonFromHtmlTables(html) {    
+    const data = {};
+  
+    JSDOM.fragment(html).querySelectorAll('table').forEach((table,tableindex) => {
+      const rows = [];
+
+      const headers = Array.prototype.map.call(table.querySelectorAll('thead tr th'),x => x.innerHTML);
+
+      table.querySelectorAll('tbody tr').forEach(target => {
+        const rowdata = {};
+        target.childNodes.forEach((x,i)=>rowdata[headers[i]] = x.innerHTML);
+        rows.push(rowdata);
+      });
+  
+      data[`Table${tableindex+1}`] = rows;
+    });
+  
+    return JSON.stringify(data,null,2);
+  }
