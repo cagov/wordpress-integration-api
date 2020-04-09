@@ -129,8 +129,6 @@ module.exports = async function (context, req) {
             sourcefile.html = content;
         else 
             sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
-    
-    
     });
 
     
@@ -206,7 +204,6 @@ module.exports = async function (context, req) {
         const mysha = sha1(sourcefile.html);
         const content = Buffer.from(sourcefile.html).toString('base64');
 
-        
         let body = {
             committer,
             branch,
@@ -267,27 +264,27 @@ module.exports = async function (context, req) {
     pinghistory.unshift(log);
 //Branch done
 
-    if(add_count+update_count+delete_count+attachment_add_count+attachment_delete_count > 0) {
-        //Something changed..merge time
+if(add_count+update_count+delete_count+attachment_add_count+attachment_delete_count > 0) {
+    //Something changed..merge time
 
-        //Merge
-        const mergeOptions = {
-            method: 'POST',
-            headers: authheader(),
-            body: JSON.stringify({
-                committer,
-                base: githubMergeTarget,
-                head: branch,
-                commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
-            })
-        };
+    //Merge
+    const mergeOptions = {
+        method: 'POST',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            base: githubMergeTarget,
+            head: branch,
+            commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
+        })
+    };
 
-        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-            .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
-        //End Merge
+    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+        .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
+    //End Merge
 
-    } else 
-        console.log(`MERGE Skipped - No Changes`);
+} else 
+    console.log(`MERGE Skipped - No Changes`);
 
     context.res = {
         body: {pinghistory},
