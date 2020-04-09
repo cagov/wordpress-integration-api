@@ -202,7 +202,7 @@ module.exports = async function (context, req) {
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
         const content = Buffer.from(sourcefile.html).toString('base64');
-
+        
         let body = {
             committer,
             branch,
