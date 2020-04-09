@@ -3,6 +3,7 @@ const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 
 let pinghistory = [];
+let shadabase = {};
 
 const committer = {
     'name': 'WordPressService',
@@ -10,8 +11,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const branch = 'master', githubMergeTarget = 'staging';
-//const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
+//const branch = 'master', githubMergeTarget = 'staging';
+const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -31,7 +32,7 @@ module.exports = async function (context, req) {
 
     //Logging data
     const started = getPacificTimeNow();
-    let add_count = 0, update_count = 0, delete_count = 0, match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
+    let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
 
     //Common Fetch functions
     const fetchJSON = async (URL, options) => 
@@ -128,6 +129,8 @@ module.exports = async function (context, req) {
             sourcefile.html = content;
         else 
             sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
+    
+    
     });
 
     
@@ -200,7 +203,9 @@ module.exports = async function (context, req) {
     //ADD/UPDATE
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
+        const mysha = sha1(sourcefile.html);
         const content = Buffer.from(sourcefile.html).toString('base64');
+
         
         let body = {
             committer,
@@ -209,21 +214,27 @@ module.exports = async function (context, req) {
         };
 
         if(targetfile) {
-            const sha = sha1(content);
-
             //UPDATE
-            const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
-            
-            if(content!==targetcontent.content.replace(/\n/g,'')) {
-                //Update file
-                body.message=gitHubMessage('Update page',targetfile.name);
-                body.sha=targetfile.sha;
 
-                await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
-                    .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
+            if(shamatch(mysha, targetfile.sha)) {
+                console.log(`SHA matched: ${targetfile.path}`);
+                sha_match_count++;
             } else {
-                console.log(`Files matched: ${targetfile.path}`);
-                match_count++;
+                //compare
+                const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
+                
+                if(content!==targetcontent.content.replace(/\n/g,'')) {
+                    //Update file
+                    body.message=gitHubMessage('Update page',targetfile.name);
+                    body.sha=targetfile.sha;
+
+                    await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
+                        .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
+                } else {
+                    console.log(`File compare matched: ${targetfile.path}`);
+                    shalink(mysha, targetcontent.sha);
+                    binary_match_count++;
+                }
             }
         } else {
             //ADD
@@ -240,11 +251,12 @@ module.exports = async function (context, req) {
     const log = {
         branch,
         started,
-        completed: getPacificTimeNow(),
-        match_count
+        completed: getPacificTimeNow()
     };
 
     if(req.method==="GET") log.method = req.method;
+    if(binary_match_count>0) log.binary_match_count = binary_match_count;
+    if(sha_match_count>0) log.sha_match_count = sha_match_count;
     if(add_count>0) log.add_count = add_count;
     if(update_count>0) log.update_count = update_count;
     if(delete_count>0) log.delete_count = delete_count;
@@ -326,4 +338,12 @@ function JsonFromHtmlTables(html) {
     });
   
     return JSON.stringify(data,null,2);
-  }
+}
+
+function shalink(mysha, theirsha) {
+    shadabase[mysha] = theirsha;
+}
+
+function shamatch(mysha, theirsha) {
+    return shadabase[mysha]===theirsha;
+}
