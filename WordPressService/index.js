@@ -2,8 +2,8 @@ const fetch = require('node-fetch');
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 
-let pinghistory = [];
-let shadabase = {};
+let pinghistory = []; //Used to log updates
+let shadabase = {}; //Used to hold sha compare hashes for faster compares
 
 const committer = {
     'name': 'WordPressService',
@@ -202,7 +202,7 @@ module.exports = async function (context, req) {
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
         const content = Buffer.from(sourcefile.html).toString('base64');
-        
+
         let body = {
             committer,
             branch,
