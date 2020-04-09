@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 const { JSDOM } = require("jsdom");
+const sha1 = require('sha1');
 
 let pinghistory = [];
 
@@ -208,6 +209,8 @@ module.exports = async function (context, req) {
         };
 
         if(targetfile) {
+            const sha = sha1(content);
+
             //UPDATE
             const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
             
@@ -252,21 +255,27 @@ module.exports = async function (context, req) {
     pinghistory.unshift(log);
 //Branch done
 
-//Merge
-const mergeOptions = {
-    method: 'POST',
-    headers: authheader(),
-    body: JSON.stringify({
-        committer,
-        base: githubMergeTarget,
-        head: branch,
-        commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
-    })
-};
+    if(add_count+update_count+delete_count+attachment_add_count+attachment_delete_count > 0) {
+        //Something changed..merge time
 
-await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-    .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
-//End Merge
+        //Merge
+        const mergeOptions = {
+            method: 'POST',
+            headers: authheader(),
+            body: JSON.stringify({
+                committer,
+                base: githubMergeTarget,
+                head: branch,
+                commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
+            })
+        };
+
+        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+            .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
+        //End Merge
+
+    } else 
+        console.log(`MERGE Skipped - No Changes`);
 
     context.res = {
         body: {pinghistory},
