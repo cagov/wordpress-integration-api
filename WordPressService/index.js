@@ -201,9 +201,8 @@ module.exports = async function (context, req) {
     //ADD/UPDATE
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
-        const mysha = sha1(sourcefile.html);
         const content = Buffer.from(sourcefile.html).toString('base64');
-        
+
         let body = {
             committer,
             branch,
@@ -212,7 +211,7 @@ module.exports = async function (context, req) {
 
         if(targetfile) {
             //UPDATE
-
+            const mysha = sha1(sourcefile.html);
             if(shamatch(mysha, targetfile.sha)) {
                 console.log(`SHA matched: ${targetfile.path}`);
                 sha_match_count++;
