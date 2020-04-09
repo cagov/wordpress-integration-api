@@ -1,7 +1,9 @@
 const fetch = require('node-fetch');
 const { JSDOM } = require("jsdom");
+const sha1 = require('sha1');
 
-let pinghistory = [];
+let pinghistory = []; //Used to log updates
+let shadabase = {}; //Used to hold sha compare hashes for faster compares
 
 const committer = {
     'name': 'WordPressService',
@@ -30,7 +32,7 @@ module.exports = async function (context, req) {
 
     //Logging data
     const started = getPacificTimeNow();
-    let add_count = 0, update_count = 0, delete_count = 0, match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
+    let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
 
     //Common Fetch functions
     const fetchJSON = async (URL, options) => 
@@ -200,7 +202,7 @@ module.exports = async function (context, req) {
     for(const sourcefile of sourcefiles) {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
         const content = Buffer.from(sourcefile.html).toString('base64');
-        
+
         let body = {
             committer,
             branch,
@@ -209,18 +211,26 @@ module.exports = async function (context, req) {
 
         if(targetfile) {
             //UPDATE
-            const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
-            
-            if(content!==targetcontent.content.replace(/\n/g,'')) {
-                //Update file
-                body.message=gitHubMessage('Update page',targetfile.name);
-                body.sha=targetfile.sha;
-
-                await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
-                    .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
+            const mysha = sha1(sourcefile.html);
+            if(shamatch(mysha, targetfile.sha)) {
+                console.log(`SHA matched: ${targetfile.path}`);
+                sha_match_count++;
             } else {
-                console.log(`Files matched: ${targetfile.path}`);
-                match_count++;
+                //compare
+                const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
+                
+                if(content!==targetcontent.content.replace(/\n/g,'')) {
+                    //Update file
+                    body.message=gitHubMessage('Update page',targetfile.name);
+                    body.sha=targetfile.sha;
+
+                    await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
+                        .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
+                } else {
+                    console.log(`File compare matched: ${targetfile.path}`);
+                    shalink(mysha, targetcontent.sha);
+                    binary_match_count++;
+                }
             }
         } else {
             //ADD
@@ -237,11 +247,12 @@ module.exports = async function (context, req) {
     const log = {
         branch,
         started,
-        completed: getPacificTimeNow(),
-        match_count
+        completed: getPacificTimeNow()
     };
 
     if(req.method==="GET") log.method = req.method;
+    if(binary_match_count>0) log.binary_match_count = binary_match_count;
+    if(sha_match_count>0) log.sha_match_count = sha_match_count;
     if(add_count>0) log.add_count = add_count;
     if(update_count>0) log.update_count = update_count;
     if(delete_count>0) log.delete_count = delete_count;
@@ -252,21 +263,27 @@ module.exports = async function (context, req) {
     pinghistory.unshift(log);
 //Branch done
 
-//Merge
-const mergeOptions = {
-    method: 'POST',
-    headers: authheader(),
-    body: JSON.stringify({
-        committer,
-        base: githubMergeTarget,
-        head: branch,
-        commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
-    })
-};
+if(add_count+update_count+delete_count+attachment_add_count+attachment_delete_count > 0) {
+    //Something changed..merge time
 
-await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-    .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
-//End Merge
+    //Merge
+    const mergeOptions = {
+        method: 'POST',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            base: githubMergeTarget,
+            head: branch,
+            commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
+        })
+    };
+
+    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+        .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
+    //End Merge
+
+} else 
+    console.log(`MERGE Skipped - No Changes`);
 
     context.res = {
         body: {pinghistory},
@@ -317,4 +334,12 @@ function JsonFromHtmlTables(html) {
     });
   
     return JSON.stringify(data,null,2);
-  }
+}
+
+function shalink(mysha, theirsha) {
+    shadabase[mysha] = theirsha;
+}
+
+function shamatch(mysha, theirsha) {
+    return shadabase[mysha]===theirsha;
+}
