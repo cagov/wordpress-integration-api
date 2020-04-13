@@ -83,7 +83,7 @@ module.exports = async function (context, req) {
         }
 
     //List of WP categories
-    const categories = (await fetchJSON(`${wordPressApiUrl}categories`))
+    const categories = (await fetchJSON(`${wordPressApiUrl}categories?per_page=100`))
         .map(x=>({id:x.id,name:x.name,slug:x.slug}));
 
     //ID of category to ignore
@@ -91,7 +91,7 @@ module.exports = async function (context, req) {
         .find(x=>x.slug===tag_ignore).id;
 
     //List of WP Tags
-    const taglist = (await fetchJSON(`${wordPressApiUrl}tags`))
+    const taglist = (await fetchJSON(`${wordPressApiUrl}tags?per_page=100`))
         .map(x=>({id:x.id,name:x.name}));
 
 
