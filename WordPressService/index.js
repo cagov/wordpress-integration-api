@@ -63,7 +63,7 @@ module.exports = async function (context, req) {
         .then(response => response.ok ? response.json() : []);
 
     //List of WP attachments
-    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?per_page=100`)
+    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=embed&per_page=100`)
         //.filter(x=>x.post)
 
     //List of individual WP attachment sized
@@ -83,7 +83,7 @@ module.exports = async function (context, req) {
         }
 
     //List of WP categories
-    const categories = (await fetchJSON(`${wordPressApiUrl}categories?per_page=100`))
+    const categories = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
         .map(x=>({id:x.id,name:x.name,slug:x.slug}));
 
     //ID of category to ignore
@@ -91,7 +91,7 @@ module.exports = async function (context, req) {
         .find(x=>x.slug===tag_ignore).id;
 
     //List of WP Tags
-    const taglist = (await fetchJSON(`${wordPressApiUrl}tags?per_page=100`))
+    const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100`))
         .map(x=>({id:x.id,name:x.name}));
 
 
