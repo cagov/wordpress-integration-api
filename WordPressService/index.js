@@ -11,8 +11,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const branch = 'master', githubMergeTarget = 'staging';
-//const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
+//const branch = 'master', githubMergeTarget = 'staging';
+const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -35,11 +35,20 @@ module.exports = async function (context, req) {
     let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
 
     //Common Fetch functions
-    const fetchJSON = async (URL, options) => 
+    const fetchJSON = async (URL, options, fetchoutput) => 
         await fetch(URL,options)
+        .then(response => {
+            if (fetchoutput)
+                fetchoutput.response = response;
+
+            return response;
+        })
         .then(response => response.ok ? (response.status===200 ? response.json() : null) : Promise.reject(response))
         .catch(async response => {
-            const json = await (response.json ? response.json() : null);
+            const json = (await (response.json ? response.json() : null)) || response;
+
+            if(!options)
+                options = {method:'GET'};
 
             context.res = {
                 body: `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`
@@ -96,7 +105,11 @@ module.exports = async function (context, req) {
 
 
     //Query WP files
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`);
+    //let sourcefiles = [];
+
+
+    const fetchoutput = {};
+    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`,undefined,fetchoutput);
     //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100`);
 
     //Add custom columns to sourcefile data
