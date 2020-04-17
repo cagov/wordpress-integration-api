@@ -11,8 +11,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-//const branch = 'master', githubMergeTarget = 'staging';
-const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
+const branch = 'master', githubMergeTarget = 'staging';
+//const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -110,11 +110,9 @@ module.exports = async function (context, req) {
         const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
         const sourcefiles = await fetchJSON(fetchquery,undefined,fetchoutput);
         const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
-        let currentpage = 1;
-        while (currentpage<totalpages) {
-            const sourcefilesnextpage = await fetchJSON(`${fetchquery}&page=${++currentpage}`);
-            sourcefilesnextpage.forEach(x=>sourcefiles.push(x));
-        }
+        for(let currentpage = 2; currentpage<=totalpages; currentpage++)
+            (await fetchJSON(`${fetchquery}&page=${currentpage}`)).forEach(x=>sourcefiles.push(x));
+        
         return sourcefiles;
     }
 
