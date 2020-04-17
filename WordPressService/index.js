@@ -105,12 +105,20 @@ module.exports = async function (context, req) {
 
 
     //Query WP files
-    //let sourcefiles = [];
+    const getWordPressPosts = async () => {
+        const fetchoutput = {};
+        const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
+        const sourcefiles = await fetchJSON(fetchquery,undefined,fetchoutput);
+        const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
+        let currentpage = 1;
+        while (currentpage<totalpages) {
+            const sourcefilesnextpage = await fetchJSON(`${fetchquery}&page=${++currentpage}`);
+            sourcefilesnextpage.forEach(x=>sourcefiles.push(x));
+        }
+        return sourcefiles;
+    }
 
-
-    const fetchoutput = {};
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`,undefined,fetchoutput);
-    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100`);
+    const sourcefiles = await getWordPressPosts();
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
