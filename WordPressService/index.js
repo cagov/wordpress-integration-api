@@ -35,11 +35,20 @@ module.exports = async function (context, req) {
     let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
 
     //Common Fetch functions
-    const fetchJSON = async (URL, options) => 
+    const fetchJSON = async (URL, options, fetchoutput) => 
         await fetch(URL,options)
+        .then(response => {
+            if (fetchoutput)
+                fetchoutput.response = response;
+
+            return response;
+        })
         .then(response => response.ok ? (response.status===200 ? response.json() : null) : Promise.reject(response))
         .catch(async response => {
-            const json = await (response.json ? response.json() : null);
+            const json = (await (response.json ? response.json() : null)) || response;
+
+            if(!options)
+                options = {method:'GET'};
 
             context.res = {
                 body: `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`
@@ -96,8 +105,18 @@ module.exports = async function (context, req) {
 
 
     //Query WP files
-    const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`);
-    //const sourcefiles = await fetchJSON(`${wordPressApiUrl}posts?per_page=100`);
+    const getWordPressPosts = async () => {
+        const fetchoutput = {};
+        const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
+        const sourcefiles = await fetchJSON(fetchquery,undefined,fetchoutput);
+        const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
+        for(let currentpage = 2; currentpage<=totalpages; currentpage++)
+            (await fetchJSON(`${fetchquery}&page=${currentpage}`)).forEach(x=>sourcefiles.push(x));
+        
+        return sourcefiles;
+    }
+
+    const sourcefiles = await getWordPressPosts();
 
     //Add custom columns to sourcefile data
     sourcefiles.forEach(sourcefile => {
