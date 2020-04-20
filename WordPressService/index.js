@@ -27,12 +27,13 @@ const githubApiMerges = 'merges';
 const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
+const tag_nocrawl = 'do-not-crawl';
 
 module.exports = async function (context, req) {
 
     //Logging data
     const started = getPacificTimeNow();
-    let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0;
+    let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0;
 
     //Common Fetch functions
     const fetchJSON = async (URL, options, fetchoutput) => 
@@ -92,12 +93,12 @@ module.exports = async function (context, req) {
         }
 
     //List of WP categories
-    const categories = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
-        .map(x=>({id:x.id,name:x.name,slug:x.slug}));
+    //const categories = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
+    //    .map(x=>({id:x.id,name:x.name,slug:x.slug}));
 
     //ID of category to ignore
-    const ignoreCategoryId = categories
-        .find(x=>x.slug===tag_ignore).id;
+    //const ignoreCategoryId = categories
+    //    .find(x=>x.slug===tag_ignore).id;
 
     //List of WP Tags
     const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100`))
@@ -107,7 +108,8 @@ module.exports = async function (context, req) {
     //Query WP files
     const getWordPressPosts = async () => {
         const fetchoutput = {};
-        const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
+        //const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
+        const fetchquery = `${wordPressApiUrl}posts?per_page=100`;
         const sourcefiles = await fetchJSON(fetchquery,undefined,fetchoutput);
         const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
         for(let currentpage = 2; currentpage<=totalpages; currentpage++)
@@ -133,6 +135,8 @@ module.exports = async function (context, req) {
         sourcefile.tags = matchedtags;
         sourcefile.isFragment = matchedtags.includes(tag_fragment);
         sourcefile.isTableData = matchedtags.includes(tag_table_data);
+        sourcefile.addToSitemap = !matchedtags.includes(tag_nocrawl);
+        sourcefile.ignore = matchedtags.includes(tag_ignore); //do-not-deploy
 
         //if there are attachments, fix the links
         for (const filesize of sourceAttachmentSizes)
@@ -147,7 +151,7 @@ module.exports = async function (context, req) {
         else if (sourcefile.isFragment)
             sourcefile.html = content;
         else 
-            sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: true\n---\n${content}`;
+            sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: ${sourcefile.addToSitemap}\n---\n${content}`;
     });
 
     
@@ -219,46 +223,51 @@ module.exports = async function (context, req) {
 
     //ADD/UPDATE
     for(const sourcefile of sourcefiles) {
-        const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
-        const content = Buffer.from(sourcefile.html).toString('base64');
-
-        let body = {
-            committer,
-            branch,
-            content
-        };
-
-        if(targetfile) {
-            //UPDATE
-            const mysha = sha1(sourcefile.html);
-            if(shamatch(mysha, targetfile.sha)) {
-                console.log(`SHA matched: ${targetfile.path}`);
-                sha_match_count++;
-            } else {
-                //compare
-                const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
-                
-                if(content!==targetcontent.content.replace(/\n/g,'')) {
-                    //Update file
-                    body.message=gitHubMessage('Update page',targetfile.name);
-                    body.sha=targetfile.sha;
-
-                    await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
-                        .then(() => {console.log(`UPDATE Success: ${targetfile.path}`);update_count++;})
-                } else {
-                    console.log(`File compare matched: ${targetfile.path}`);
-                    shalink(mysha, targetcontent.sha);
-                    binary_match_count++;
-                }
-            }
+        if(sourcefile.ignore) {
+            console.log(`Ignored: ${sourcefile.filename}`);
+            ignore_count++;
         } else {
-            //ADD
-            const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
-            const newFilePath = `${githubSyncFolder}/${newFileName}`;
-            body.message=gitHubMessage('Add page',newFileName);
-            
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
-                .then(() => {console.log(`ADD Success: ${newFilePath}`);add_count++;})
+            const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
+            const content = Buffer.from(sourcefile.html).toString('base64');
+
+            let body = {
+                committer,
+                branch,
+                content
+            };
+
+            if(targetfile) {
+                //UPDATE
+                const mysha = sha1(sourcefile.html);
+                if(shamatch(mysha, targetfile.sha)) {
+                    console.log(`SHA matched: ${targetfile.path}`);
+                    sha_match_count++;
+                } else {
+                    //compare
+                    const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
+                    
+                    if(content!==targetcontent.content.replace(/\n/g,'')) {
+                        //Update file
+                        body.message=gitHubMessage('Update page',targetfile.name);
+                        body.sha=targetfile.sha;
+
+                        await fetchJSON(`${githubApiUrl}${githubApiContents}${targetfile.path}`, getPutOptions(body))
+                            .then(() => {console.log(`UPDATE Success: ${sourcefile.filename}`);update_count++;})
+                    } else {
+                        console.log(`File compare matched: ${sourcefile.filename}`);
+                        shalink(mysha, targetcontent.sha);
+                        binary_match_count++;
+                    }
+                }
+            } else {
+                //ADD
+                const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
+                const newFilePath = `${githubSyncFolder}/${newFileName}`;
+                body.message=gitHubMessage('Add page',newFileName);
+                
+                await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
+                    .then(() => {console.log(`ADD Success: ${sourcefile.filename}`);add_count++;})
+            }
         }
     }
 
@@ -266,7 +275,8 @@ module.exports = async function (context, req) {
     const log = {
         branch,
         started,
-        completed: getPacificTimeNow()
+        completed: getPacificTimeNow(),
+        ignore_count
     };
 
     if(req.method==="GET") log.method = req.method;
