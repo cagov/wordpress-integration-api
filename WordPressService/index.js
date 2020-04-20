@@ -11,8 +11,8 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-//const branch = 'master', githubMergeTarget = 'staging';
-const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
+const branch = 'master', githubMergeTarget = 'staging';
+//const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
