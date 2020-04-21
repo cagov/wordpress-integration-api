@@ -12,8 +12,8 @@ const committer = {
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 
-const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
-//const branch = 'wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
+//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
+const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
