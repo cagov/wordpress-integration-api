@@ -11,8 +11,9 @@ const committer = {
 };
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-const branch = 'master', githubMergeTarget = 'staging';
-//const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
+
+//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
+const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -24,13 +25,13 @@ const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
 const githubApiMerges = 'merges';
+const githubApiBranches = 'branches/';
 const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 
 module.exports = async function (context, req) {
-
     //Logging data
     const started = getPacificTimeNow();
     let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0;
@@ -41,6 +42,8 @@ module.exports = async function (context, req) {
         .then(response => {
             if (fetchoutput)
                 fetchoutput.response = response;
+
+            //const yo = response.ok ? (response.status===200 ? response.json() : null) : null;
 
             return response;
         })
@@ -67,6 +70,42 @@ module.exports = async function (context, req) {
             headers: authheader(),
             body: JSON.stringify(bodyJSON)
         });
+
+    const WorkBranchIsSynced = async () => {
+        const workbranchresult = await fetchJSON(`${githubApiUrl}${githubApiBranches}${branch}`,defaultoptions());
+        const sourcebranchresult = await fetchJSON(`${githubApiUrl}${githubApiBranches}${sourcebranch}`,defaultoptions());
+
+        return workbranchresult.commit.commit.tree.sha===sourcebranchresult.commit.commit.tree.sha;
+    }
+
+    //Prepare the work branch
+    const prepareWorkBranch = async () => {
+        //see if the work and source branch are already lined up
+
+
+        if(await WorkBranchIsSynced()) {
+            //workbranch and sourcebranch match...no merge needed
+            console.log(`MERGE Skipped: ${branch} matches ${sourcebranch}`)
+        } else {
+            //Merge
+            const mergeOptions = {
+                method: 'POST',
+                headers: authheader(),
+                body: JSON.stringify({
+                    committer,
+                    base: branch,
+                    head: sourcebranch,
+                    commit_message: `Synced from '${sourcebranch}'`
+                })
+            };
+
+            await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+                .then(() => {console.log(`MERGE Success: ${branch} from ${sourcebranch}`);})
+            //End Merge
+        }
+    };
+    await prepareWorkBranch();
+
 
     //Lift of github attachments
     const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
@@ -253,8 +292,10 @@ module.exports = async function (context, req) {
                         body.message=gitHubMessage('Update page',targetfile.name);
                         body.sha=targetfile.sha;
 
-                        await fetchJSON(targetfile.url, getPutOptions(body))
+                        const result = await fetchJSON(targetfile.url, getPutOptions(body))
                             .then(() => {console.log(`UPDATE Success: ${sourcefile.filename}`);update_count++;})
+
+                        //shalink(mysha, result.sha);
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
                         shalink(mysha, targetcontent.sha);
@@ -274,6 +315,7 @@ module.exports = async function (context, req) {
     }
 
     //Add to log
+    const total_changes = add_count+update_count+delete_count+attachment_add_count+attachment_delete_count;
     const log = {
         branch,
         started,
@@ -290,31 +332,35 @@ module.exports = async function (context, req) {
     if(attachment_add_count>0) log.attachment_add_count = attachment_add_count;
     if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
     if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
+    if(total_changes>0) log.total_changes = total_changes;
 
     pinghistory.unshift(log);
 //Branch done
 
-if(add_count+update_count+delete_count+attachment_add_count+attachment_delete_count > 0) {
-    //Something changed..merge time
-
-    //Merge
-    const mergeOptions = {
-        method: 'POST',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            base: githubMergeTarget,
-            head: branch,
-            commit_message: `Merge branch '${branch}' into '${githubMergeTarget}'`
-        })
-    };
-
-    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-        .then(() => {console.log(`MERGE Success: ${githubMergeTarget} from ${branch}`);})
-    //End Merge
-
-} else 
+if(await WorkBranchIsSynced())
     console.log(`MERGE Skipped - No Changes`);
+else {
+    //Something changed..merge time (async, since we are done here.)
+
+    mergetargets.forEach(async mergetarget =>  {
+        //Merge
+        const mergeOptions = {
+            method: 'POST',
+            headers: authheader(),
+            body: JSON.stringify({
+                committer,
+                base: mergetarget,
+                head: branch,
+                commit_message: `WordPressService deployed to '${mergetarget}'`
+            })
+        };
+
+        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+            .then(() => {console.log(`MERGE Success: ${mergetarget} from ${branch}`);})
+        //End Merge
+    });
+}
+
 
     context.res = {
         body: {pinghistory},
