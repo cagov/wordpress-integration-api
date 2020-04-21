@@ -178,12 +178,18 @@ module.exports = async function (context, req) {
         sourcefile.ignore = matchedtags.includes(tag_ignore); //do-not-deploy
 
         //if there are attachments, fix the links
-        for (const filesize of sourceAttachmentSizes)
-            if(content.match(filesize.source_url)) {
-                content = content.replace(new RegExp(filesize.source_url, 'g'),filesize.newpath.replace(/^src/,''));
+        for (const filesize of sourceAttachmentSizes) {
+            const newUrl = filesize.newpath.replace(/^src/,'');
+            if(content.match(newUrl)) {
                 filesize.used = true;
                 attachments_used_count++;
             }
+            if(content.match(filesize.source_url)) {
+                content = content.replace(new RegExp(filesize.source_url, 'g'),newUrl);
+                filesize.used = true;
+                attachments_used_count++;
+            }
+        }
 
         if (sourcefile.isTableData)
             sourcefile.html = JsonFromHtmlTables(content);
