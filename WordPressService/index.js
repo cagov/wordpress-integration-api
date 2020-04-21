@@ -14,7 +14,6 @@ const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 const branch = 'master', githubMergeTarget = 'staging';
 //const branch = 'synctest3', githubMergeTarget = 'synctest3_staging';
 
-const branchref = `?ref=${branch}`;
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
 const wpTargetFilePrefix = '/wp';
@@ -70,7 +69,7 @@ module.exports = async function (context, req) {
         });
 
     //Lift of github attachments
-    const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}${branchref}`,defaultoptions())
+    const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
         .then(response => response.ok ? response.json() : []);
 
     //List of WP attachments
@@ -192,19 +191,18 @@ module.exports = async function (context, req) {
                 })
             };
     
-            await fetchJSON(targetAttachmentSize.url.replace(branchref,''), options)
+            await fetchJSON(targetAttachmentSize.url, options)
                 .then(() => {console.log(`ATTACHMENT DELETE Success: ${targetAttachmentSize.name}`);attachment_delete_count++;})
         }
 
 
     //Query GitHub files
-    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}${branchref}`,defaultoptions()))
+    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${branch}`,defaultoptions()))
         .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
     //Add custom columns to targetfile data
     targetfiles.forEach(x=>{
         x.filename = x.name.split('.')[0];
-        x.actionurl = x.url.replace(branchref,'');
     });
     
     //Files to delete
@@ -221,7 +219,7 @@ module.exports = async function (context, req) {
             })
         };
 
-        await fetchJSON(deleteTarget.actionurl, options)
+        await fetchJSON(deleteTarget.url, options)
             .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
     }
 
@@ -255,7 +253,7 @@ module.exports = async function (context, req) {
                         body.message=gitHubMessage('Update page',targetfile.name);
                         body.sha=targetfile.sha;
 
-                        await fetchJSON(targetfile.actionurl, getPutOptions(body))
+                        await fetchJSON(targetfile.url, getPutOptions(body))
                             .then(() => {console.log(`UPDATE Success: ${sourcefile.filename}`);update_count++;})
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
