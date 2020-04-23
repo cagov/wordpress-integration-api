@@ -12,8 +12,8 @@ const committer = {
 
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -42,9 +42,6 @@ module.exports = async function (context, req) {
         .then(response => {
             if (fetchoutput)
                 fetchoutput.response = response;
-
-            //const yo = response.ok ? (response.status===200 ? response.json() : null) : null;
-
             return response;
         })
         .then(response => response.ok ? (response.status===200 ? response.json() : null) : Promise.reject(response))
@@ -201,24 +198,35 @@ module.exports = async function (context, req) {
 
     
     //Make sure all the attachment sizes get added
-    for (const sourceAttachmentSize of sourceAttachmentSizes)
-        //If this attachment size was used, and isn't there, add it
-        if(sourceAttachmentSize.used && !targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath)) {
-            const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
-            const buffer = await filebytes.arrayBuffer();
-            const content =  Buffer.from(buffer).toString('base64');
-            const message = gitHubMessage('Add file',sourceAttachmentSize.file);
+    for (const sourceAttachmentSize of sourceAttachmentSizes) {
+        if(sourceAttachmentSize.used) {
+            if(targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath)) {
+                //File is used, and it exists in the repo
+const vacr = 1;
 
-            const fileAddOptions = getPutOptions({
-                message,
-                committer,
-                branch,
-                content
-            });
-        
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
-                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
+
+
+            } else {
+                //File is used, and it needs to be added to the repo
+                const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
+                const buffer = await filebytes.arrayBuffer();
+                const content =  Buffer.from(buffer).toString('base64');
+                const message = gitHubMessage('Add file',sourceAttachmentSize.file);
+    
+                const fileAddOptions = getPutOptions({
+                    message,
+                    committer,
+                    branch,
+                    content
+                });
+            
+                await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
+                    .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
+            }
+        } else {
+            //Not used...why is it there?
         }
+    }
 
     //Remove extra attachment sizes
     for (const targetAttachmentSize of targetAttachmentFiles)
