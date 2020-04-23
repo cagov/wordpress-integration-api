@@ -204,6 +204,8 @@ module.exports = async function (context, req) {
                 //File is used, and it exists in the repo
 const vacr = 1;
 
+//check the GMT modification date and see if it is newer than the last update.  
+
 
 
             } else {
