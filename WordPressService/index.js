@@ -200,10 +200,49 @@ module.exports = async function (context, req) {
     //Make sure all the attachment sizes get added
     for (const sourceAttachmentSize of sourceAttachmentSizes) {
         if(sourceAttachmentSize.used) {
-            if(targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath)) {
-                //File is used, and it exists in the repo
-const vacr = 1;
+            const targetAttachmentFile = targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath);
 
+            if(targetAttachmentFile) {
+                //File is used, and it exists in the repo
+
+                //binary compare
+                const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
+                const sourcebuffer = await sourcefilebytes.arrayBuffer();
+
+                const targetfilebytes = await fetch(targetAttachmentFile.download_url,defaultoptions());
+                const targetbuffer = await targetfilebytes.arrayBuffer();
+
+                const targetBuffer = Buffer.from(targetbuffer);
+                const sourceBuffer = Buffer.from(sourcebuffer);
+
+                const sourcesha = sha1(sourceBuffer);
+                const targetsha = sha1(targetBuffer);
+
+                //const targetBase64 = targetBuffer.toString('base64');
+                //const sourceBase64 = sourceBuffer.toString('base64');
+
+                //TODO:
+                //For now, if the size changes do an update?
+                //Really need to keep a sync status file to store hashes.
+
+
+                if(sourcesha!==targetsha) {
+                    //files differ...time to update
+                    console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);
+                } else {
+                    //files are the same...set sha to match
+                    console.log(`File binary matched: ${sourceAttachmentSize.file}`);
+
+                }
+
+
+
+
+
+
+                //const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetAttachmentFile.sha}`,defaultoptions())
+
+const yo=1;
 //check the GMT modification date and see if it is newer than the last update.  
 
 
@@ -226,7 +265,8 @@ const vacr = 1;
                     .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
             }
         } else {
-            //Not used...why is it there?
+            //Not used...why is it in wordpress?
+            console.log(`Unused file in Wordpress: ${sourceAttachmentSize.file}`);
         }
     }
 
