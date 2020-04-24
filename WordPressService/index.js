@@ -421,6 +421,9 @@ const update_manifest = async () => {
     //Remove shas with no matches.
     manifest.shadabase = manifest.shadabase.filter(x=>x.matchcount);
 
+    //Remove single use sha counts
+    manifest.shadabase.forEach(x=>{if(x.matchcount===1) delete x.matchcount;});
+
     const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
 
     const body = {
