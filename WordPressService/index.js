@@ -122,7 +122,7 @@ const shalink = (wpsha, githubsha) => {
     if(existing)
         existing.matchcount++;
     else
-        manifest.shadabase.push({wpsha, githubsha, matchcount:0});
+        manifest.shadabase.push({wpsha, githubsha, matchcount:1});
 }
 //Lift of github attachments
 const targetAttachmentFiles = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
@@ -224,44 +224,39 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
             //binary compare
             const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
             const sourcebuffer = await sourcefilebytes.arrayBuffer();
-
-            const targetfilebytes = await fetch(targetAttachmentFile.download_url,defaultoptions());
-            const targetbuffer = await targetfilebytes.arrayBuffer();
-
-            const targetBuffer = Buffer.from(targetbuffer);
             const sourceBuffer = Buffer.from(sourcebuffer);
-
             const sourcesha = sha1(sourceBuffer);
-            const targetsha = sha1(targetBuffer);
 
-            //const targetBase64 = targetBuffer.toString('base64');
-            //const sourceBase64 = sourceBuffer.toString('base64');
-
-            //TODO:
-            //For now, if the size changes do an update?
-            //Really need to keep a sync status file to store hashes.
-
-
-            if(sourcesha!==targetsha) {
-                //files differ...time to update
-                console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);
+            if(shamatch(sourcesha,targetAttachmentFile.sha)) {
+                console.log(`File sha matched: ${sourceAttachmentSize.file}`);
             } else {
-                //files are the same...set sha to match
-                console.log(`File binary matched: ${sourceAttachmentSize.file}`);
+                console.log(`File sha NO MATCH!!!: ${sourceAttachmentSize.file}`);
 
+
+                const targetfilebytes = await fetch(targetAttachmentFile.download_url,defaultoptions());
+                const targetbuffer = await targetfilebytes.arrayBuffer();
+                const targetBuffer = Buffer.from(targetbuffer);
+                const targetsha = sha1(targetBuffer);
+    
+                //const targetBase64 = targetBuffer.toString('base64');
+                //const sourceBase64 = sourceBuffer.toString('base64');
+    
+                //TODO:
+                //For now, if the size changes do an update?
+                //Really need to keep a sync status file to store hashes.
+    
+    
+                if(sourcesha!==targetsha) {
+                    //files differ...time to update
+                    console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);
+                } else {
+                    //files are the same...set sha to match
+                    console.log(`File binary matched: ${sourceAttachmentSize.file}`);
+                    shalink(sourcesha,targetAttachmentFile.sha);
+    
+                }
+    
             }
-
-
-
-
-
-
-            //const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetAttachmentFile.sha}`,defaultoptions())
-
-const yo=1;
-//check the GMT modification date and see if it is newer than the last update.  
-
-
 
         } else {
             //File is used, and it needs to be added to the repo
@@ -409,12 +404,6 @@ if(total_changes>0) log.total_changes = total_changes;
 pinghistory.unshift(log);
 //Branch done
 
-
-
-
-
-
-//Update manifest
 const update_manifest = async () => {
     //sort shas
     manifest.shadabase.sort((a, b) => ('' + a.wpsha).localeCompare(b.wpsha));
@@ -424,6 +413,7 @@ const update_manifest = async () => {
     //Remove single use sha counts
     manifest.shadabase.forEach(x=>{if(x.matchcount===1) delete x.matchcount;});
 
+    //get existing manifest for branch compare
     const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
 
     const body = {
