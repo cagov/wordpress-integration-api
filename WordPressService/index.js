@@ -10,11 +10,15 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
-
 const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
 //const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
 
+
+const githubUser = 'cagov';
+const githubRepo = 'covid19';
+const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
+const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${branch}`;
+const githubManifestPath = `${githubRawUrl}/pages/_data/wp/syncmanifest.json`;
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
 const wpTargetFilePrefix = '/wp';
@@ -103,6 +107,8 @@ module.exports = async function (context, req) {
     };
     await prepareWorkBranch();
 
+    //load the manifest from github
+    const manifest = await fetchJSON(githubManifestPath,defaultoptions());
 
     //Lift of github attachments
     const targetAttachmentFiles = await fetch(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
