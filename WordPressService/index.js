@@ -232,32 +232,22 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
             } else {
                 console.log(`File sha NO MATCH!!!: ${sourceAttachmentSize.file}`);
 
-
                 const targetfilebytes = await fetch(targetAttachmentFile.download_url,defaultoptions());
                 const targetbuffer = await targetfilebytes.arrayBuffer();
                 const targetBuffer = Buffer.from(targetbuffer);
                 const targetsha = sha1(targetBuffer);
-    
-                //const targetBase64 = targetBuffer.toString('base64');
-                //const sourceBase64 = sourceBuffer.toString('base64');
-    
-                //TODO:
-                //For now, if the size changes do an update?
-                //Really need to keep a sync status file to store hashes.
-    
-    
+        
                 if(sourcesha!==targetsha) {
                     //files differ...time to update
                     console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);
+
+                    //TODO: perform an update
                 } else {
                     //files are the same...set sha to match
                     console.log(`File binary matched: ${sourceAttachmentSize.file}`);
                     shalink(sourcesha,targetAttachmentFile.sha);
-    
                 }
-    
             }
-
         } else {
             //File is used, and it needs to be added to the repo
             const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
