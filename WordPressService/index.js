@@ -113,7 +113,8 @@ await manifest.shadabase.forEach(x=>x.matchcount=0);
 
 const shamatch = (wpsha, githubsha) => {
     const existing = manifest.shadabase.find(x=>x.wpsha===wpsha&&x.githubsha===githubsha);
-    existing.matchcount++;
+    if(existing)
+        existing.matchcount++;
     return existing
 }
 const shalink = (wpsha, githubsha) => {
@@ -415,9 +416,10 @@ pinghistory.unshift(log);
 
 //Update manifest
 const update_manifest = async () => {
-    manifest.yo=2;
-
-
+    //sort shas
+    manifest.shadabase.sort((a, b) => ('' + a.wpsha).localeCompare(b.wpsha));
+    //Remove shas with no matches.
+    manifest.shadabase = manifest.shadabase.filter(x=>x.matchcount);
 
     const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
 
