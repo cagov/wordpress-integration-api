@@ -229,13 +229,13 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
 
             if(shamatch(sourcesha,targetAttachmentFile.sha)) {
                 console.log(`File sha matched: ${sourceAttachmentSize.file}`);
+                sha_match_count++;
             } else {
                 console.log(`File sha NO MATCH!!!: ${sourceAttachmentSize.file}`);
 
                 const targetfilebytes = await fetch(targetAttachmentFile.download_url,defaultoptions());
                 const targetbuffer = await targetfilebytes.arrayBuffer();
                 const targetBuffer = Buffer.from(targetbuffer);
-                const targetsha = sha1(targetBuffer);
         
                 if(targetBuffer.equals(sourceBuffer)) {
                     //files are the same...set sha to match
@@ -243,31 +243,28 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
                     shalink(sourcesha,targetAttachmentFile.sha);
                 } else {
                     //files differ...time to update
-                    console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);
-
-                    //TODO: perform an update
-                    const content = sourceBuffer.toString('base64');
-            
+                    console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);            
                     let body = {
                         committer,
                         branch,
-                        content
+                        content : sourceBuffer.toString('base64'),
+                        message : gitHubMessage('Update file',targetAttachmentFile.name),
+                        sha : targetAttachmentFile.sha
                     };
 
-                    body.message=gitHubMessage('Update file',targetAttachmentFile.name);
-                    body.sha=targetAttachmentFile.sha;
-
-                    const result = await fetchJSON(targetAttachmentFile.url, getPutOptions(body))
-                        .then((r) => {console.log(`UPDATE Success: ${sourceAttachmentSize.filename}`);update_count++;return r;})
-
-                    shalink(sourcesha, result.content.sha);
+                    await fetchJSON(targetAttachmentFile.url, getPutOptions(body))
+                        .then(() => {
+                            console.log(`UPDATE Success: ${sourceAttachmentSize.filename}`);
+                        });
+                    
+                    update_count++;
                 }
             }
         } else {
             //File is used, and it needs to be added to the repo
             const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
             const buffer = await filebytes.arrayBuffer();
-            const content =  Buffer.from(buffer).toString('base64');
+            const content = Buffer.from(buffer).toString('base64');
             const message = gitHubMessage('Add file',sourceAttachmentSize.file);
 
             const fileAddOptions = getPutOptions({
@@ -278,7 +275,11 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
             });
         
             await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
-                .then(() => {console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);attachment_add_count++;});
+                .then(() => {
+                    console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);
+                });
+            
+            attachment_add_count++;
         }
     } else {
         //Not used...why is it in wordpress?
@@ -364,10 +365,11 @@ for(const sourcefile of sourcefiles) {
                     body.message=gitHubMessage('Update page',targetfile.name);
                     body.sha=targetfile.sha;
 
-                    const result = await fetchJSON(targetfile.url, getPutOptions(body))
-                        .then((r) => {console.log(`UPDATE Success: ${sourcefile.filename}`);update_count++;return r;})
-
-                    shalink(mysha, result.content.sha);
+                    await fetchJSON(targetfile.url, getPutOptions(body))
+                        .then(() => {
+                            console.log(`UPDATE Success: ${sourcefile.filename}`);
+                        });
+                    update_count++;
                 } else {
                     console.log(`File compare matched: ${sourcefile.filename}`);
                     shalink(mysha, targetcontent.sha);
