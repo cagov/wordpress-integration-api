@@ -237,15 +237,30 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
                 const targetBuffer = Buffer.from(targetbuffer);
                 const targetsha = sha1(targetBuffer);
         
-                if(sourcesha!==targetsha) {
+                if(targetBuffer.equals(sourceBuffer)) {
+                    //files are the same...set sha to match
+                    console.log(`File binary matched: ${sourceAttachmentSize.file}`);
+                    shalink(sourcesha,targetAttachmentFile.sha);
+                } else {
                     //files differ...time to update
                     console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);
 
                     //TODO: perform an update
-                } else {
-                    //files are the same...set sha to match
-                    console.log(`File binary matched: ${sourceAttachmentSize.file}`);
-                    shalink(sourcesha,targetAttachmentFile.sha);
+                    const content = sourceBuffer.toString('base64');
+            
+                    let body = {
+                        committer,
+                        branch,
+                        content
+                    };
+
+                    body.message=gitHubMessage('Update file',targetAttachmentFile.name);
+                    body.sha=targetAttachmentFile.sha;
+
+                    const result = await fetchJSON(targetAttachmentFile.url, getPutOptions(body))
+                        .then((r) => {console.log(`UPDATE Success: ${sourceAttachmentSize.filename}`);update_count++;return r;})
+
+                    shalink(sourcesha, result.content.sha);
                 }
             }
         } else {
@@ -352,7 +367,7 @@ for(const sourcefile of sourcefiles) {
                     const result = await fetchJSON(targetfile.url, getPutOptions(body))
                         .then((r) => {console.log(`UPDATE Success: ${sourcefile.filename}`);update_count++;return r;})
 
-                    //shalink(mysha, result.sha);
+                    shalink(mysha, result.content.sha);
                 } else {
                     console.log(`File compare matched: ${sourcefile.filename}`);
                     shalink(mysha, targetcontent.sha);
@@ -405,17 +420,21 @@ const update_manifest = async () => {
 
     //get existing manifest for branch compare
     const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
+    const content = Buffer.from(JSON.stringify(manifest,null,2)).toString('base64');
 
-    const body = {
-        committer,
-        branch,
-        content:Buffer.from(JSON.stringify(manifest,null,2)).toString('base64'),
-        message:'Update manifest',
-        sha:currentmanifest.sha
-    };
-    
-    await fetchJSON(currentmanifest.url, getPutOptions(body))
-        .then(() => {console.log(`Manifest UPDATE Success:`)});
+    if(content!==currentmanifest.content.replace(/\n/g,'')) {
+        //manifest changed
+        const body = {
+            committer,
+            branch,
+            content,
+            message:'Update manifest',
+            sha:currentmanifest.sha
+        };
+        
+        await fetchJSON(currentmanifest.url, getPutOptions(body))
+            .then(() => {console.log(`Manifest UPDATE Success:`)});
+    }
 }
 await update_manifest();
 
