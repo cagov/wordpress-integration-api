@@ -106,18 +106,18 @@ const prepareWorkBranch = async () => {
 };
 await prepareWorkBranch();
 
-const shamatch = (wpsha, githubsha) => 
-    manifest.shadabase.find(x=>x.wpsha===wpsha&&x.githubsha===githubsha);
+const shamatch = (wp_sha, github_sha) => 
+    manifest.shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha);
 
-const shalink = (wpsha, githubsha) => {
-    const existing=shamatch(wpsha, githubsha);
-    if(!existing)
-        manifest.shadabase.push({wpsha, githubsha, matchcount:1});
+const shalink = (wp_sha, github_sha) => {
+    if(wp_sha&&github_sha&&!shamatch(wp_sha, github_sha))
+        manifest.shadabase.push({wp_sha, github_sha});
 }
 
 //load the manifest from github
 const manifest = await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions());
 
+//shadabase is built with sha data from posts/media
 manifest.shadabase = [];
 await manifest.media.forEach(x=> {shalink(x.wp_sha,x.github_sha)})
 await manifest.posts.forEach(x=> {shalink(x.wp_sha,x.github_sha)})
@@ -432,13 +432,8 @@ pinghistory.unshift(log);
 //Branch done
 
 const update_manifest = async () => {
-    //sort shas
-    manifest.shadabase.sort((a, b) => ('' + a.wpsha).localeCompare(b.wpsha));
-    //Remove shas with no matches.
-    manifest.shadabase = manifest.shadabase.filter(x=>x.matchcount);
-
-    //Remove single use sha counts
-    manifest.shadabase.forEach(x=>{if(x.matchcount===1) delete x.matchcount;});
+    //don't need shadabase anymore
+    delete manifest.shadabase;
 
     //Remove content from manifest
     manifest.posts.forEach(x=>{
