@@ -106,24 +106,21 @@ const prepareWorkBranch = async () => {
 };
 await prepareWorkBranch();
 
+const shamatch = (wpsha, githubsha) => 
+    manifest.shadabase.find(x=>x.wpsha===wpsha&&x.githubsha===githubsha);
+
+const shalink = (wpsha, githubsha) => {
+    const existing=shamatch(wpsha, githubsha);
+    if(!existing)
+        manifest.shadabase.push({wpsha, githubsha, matchcount:1});
+}
+
 //load the manifest from github
 const manifest = await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions());
 
-await manifest.shadabase.forEach(x=>x.matchcount=0);
-
-const shamatch = (wpsha, githubsha) => {
-    const existing = manifest.shadabase.find(x=>x.wpsha===wpsha&&x.githubsha===githubsha);
-    if(existing)
-        existing.matchcount++;
-    return existing
-}
-const shalink = (wpsha, githubsha) => {
-    const existing=shamatch(wpsha, githubsha);
-    if(existing)
-        existing.matchcount++;
-    else
-        manifest.shadabase.push({wpsha, githubsha, matchcount:1});
-}
+manifest.shadabase = [];
+await manifest.media.forEach(x=> {shalink(x.wp_sha,x.github_sha)})
+await manifest.posts.forEach(x=> {shalink(x.wp_sha,x.github_sha)})
 
 const loadMedia = async () => {
  
@@ -144,9 +141,9 @@ const loadMedia = async () => {
                 {
                     file : newmedia.file,
                     modified : newmedia.modified || sourceAttachment.modified,
-                    source_url : newmedia.source_url,
+                    wp_path : newmedia.source_url,
                      //flatten the file path
-                    newpath : `${githubImagesTargetFolder}${wpTargetFilePrefix}/${newmedia.file}`,
+                    github_path : `${githubImagesTargetFolder}${wpTargetFilePrefix}/${newmedia.file}`,
                     mime_type : newmedia.mime_type
                 }
             );
@@ -155,9 +152,6 @@ const loadMedia = async () => {
 }
 
 await loadMedia();
-
-//Lift of github attachments
-const targetAttachmentFiles = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
 
 //List of WP categories
 const categories = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
@@ -178,32 +172,34 @@ const getWordPressPosts = async () => {
     for(let currentpage = 2; currentpage<=totalpages; currentpage++)
         (await fetchJSON(`${fetchquery}&page=${currentpage}`)).forEach(x=>sourcefiles.push(x));
     
-    return sourcefiles;
+    return sourcefiles.map(sf=>({
+        name : sf.name,
+        filename : sf.slug,
+        slug : sf.slug,
+        pagetitle : sf.title.rendered,
+        meta : sf.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim(),
+        modified : sf.modified_gmt,
+        content : sf.content.rendered,
+        tags : defaultTags.concat(sf.tags.map(x=>taglist.find(y=>y.id===x).name))
+    }));
 }
 
-const sourcefiles = await getWordPressPosts();
+manifest.posts = await getWordPressPosts();
 
 //Add custom columns to sourcefile data
-sourcefiles.forEach(sourcefile => {
-    sourcefile.filename = sourcefile.slug;
+manifest.posts.forEach(sourcefile => {
+    const tagtext = sourcefile.tags.length===0 ? '' : `tags: [${sourcefile.tags.map(x=>`"${x}"`) .join(',')}]\n`;
 
-    const pagetitle = sourcefile.title.rendered;
-    const meta = sourcefile.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim();
-    const matchedtags = defaultTags.concat(sourcefile.tags.map(x=>taglist.find(y=>y.id===x).name));
+    let content = sourcefile.content;
 
-    const tagtext = matchedtags.length===0 ? '' : `tags: [${matchedtags.map(x=>`"${x}"`) .join(',')}]\n`;
-
-    let content = sourcefile.content.rendered;
-
-    sourcefile.tags = matchedtags;
-    sourcefile.isFragment = matchedtags.includes(tag_fragment);
-    sourcefile.isTableData = matchedtags.includes(tag_table_data);
-    sourcefile.addToSitemap = !matchedtags.includes(tag_nocrawl);
-    sourcefile.ignore = matchedtags.includes(tag_ignore); //do-not-deploy
+    sourcefile.isFragment = sourcefile.tags.includes(tag_fragment);
+    sourcefile.isTableData = sourcefile.tags.includes(tag_table_data);
+    sourcefile.addToSitemap = !sourcefile.tags.includes(tag_nocrawl);
+    sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
 
     //if there are attachments, fix the links
     for (const filesize of manifest.media) {
-        const newUrl = filesize.newpath.replace(/^src/,'');
+        const newUrl = filesize.github_path.replace(/^src/,'');
         const setused = () => {
             filesize.usedbyslugs = filesize.usedbyslugs || [];
             filesize.usedbyslugs.push(sourcefile.slug);
@@ -212,8 +208,8 @@ sourcefiles.forEach(sourcefile => {
         if(content.match(newUrl)) {
             setused();
         }
-        if(content.match(filesize.source_url)) {
-            content = content.replace(new RegExp(filesize.source_url, 'g'),newUrl);
+        if(content.match(filesize.wp_path)) {
+            content = content.replace(new RegExp(filesize.wp_path, 'g'),newUrl);
             setused();
         }
     }
@@ -223,28 +219,30 @@ sourcefiles.forEach(sourcefile => {
     else if (sourcefile.isFragment)
         sourcefile.html = content;
     else 
-        sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${pagetitle}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified_gmt}Z"\n${tagtext}addtositemap: ${sourcefile.addToSitemap}\n---\n${content}`;
+        sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${sourcefile.pagetitle}"\nmeta: "${sourcefile.meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified}Z"\n${tagtext}addtositemap: ${sourcefile.addToSitemap}\n---\n${content}`;
 });
 
+//Lift of github attachments
+const targetAttachmentFiles = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
 
 //Make sure all the attachment sizes get added
 for (const sourceMedia of manifest.media) {
     if(sourceMedia.usedbyslugs) {
-        const targetMedia = targetAttachmentFiles.find(x=>x.path===sourceMedia.newpath);
+        const targetMedia = targetAttachmentFiles.find(x=>x.path===sourceMedia.github_path);
 
         if(targetMedia) {
             //File is used, and it exists in the repo
 
             //binary compare
-            const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceMedia.source_url}`);
+            const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
             const sourcebuffer = await sourcefilebytes.arrayBuffer();
             const sourceBuffer = Buffer.from(sourcebuffer);
             const sourcesha = sha1(sourceBuffer);
 
             if(shamatch(sourcesha,targetMedia.sha)) {
                 console.log(`File sha matched: ${sourceMedia.file}`);
-                sourceMedia.wpsha = sourcesha;
-                sourceMedia.githubsha = targetMedia.sha;
+                sourceMedia.wp_sha = sourcesha;
+                sourceMedia.github_sha = targetMedia.sha;
                 sha_match_count++;
             } else {
                 console.log(`File sha NO MATCH!!!: ${sourceMedia.file}`);
@@ -257,6 +255,8 @@ for (const sourceMedia of manifest.media) {
                     //files are the same...set sha to match
                     console.log(`File binary matched: ${sourceMedia.file}`);
                     shalink(sourcesha,targetMedia.sha);
+                    sourceMedia.wp_sha = sourcesha;
+                    sourceMedia.github_sha = targetMedia.sha;
                 } else {
                     //files differ...time to update
                     console.log(`File binary NO MATCH!!!...needs update: ${sourceMedia.file}`);            
@@ -278,7 +278,7 @@ for (const sourceMedia of manifest.media) {
             }
         } else {
             //File is used, and it needs to be added to the repo
-            const filebytes =  await fetch(`${wordPressUrl}${sourceMedia.source_url}`);
+            const filebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
             const buffer = await filebytes.arrayBuffer();
             const content = Buffer.from(buffer).toString('base64');
             const message = gitHubMessage('Add file',sourceMedia.file);
@@ -290,7 +290,7 @@ for (const sourceMedia of manifest.media) {
                 content
             });
         
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceMedia.newpath}`, fileAddOptions)
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceMedia.github_path}`, fileAddOptions)
                 .then(() => {
                     console.log(`ATTACHMENT ADD Success: ${sourceMedia.file}`);
                 });
@@ -306,7 +306,7 @@ for (const sourceMedia of manifest.media) {
 //Remove extra attachment sizes
 for (const targetAttachmentSize of targetAttachmentFiles)
     //If this file shouldn't be there, remove it
-    if(!manifest.media.find(x=>targetAttachmentSize.path===x.newpath&&x.usedbyslugs)) {
+    if(!manifest.media.find(x=>targetAttachmentSize.path===x.github_path&&x.usedbyslugs)) {
         const message = gitHubMessage('Delete file',targetAttachmentSize.name);
         const options = {
             method: 'DELETE',
@@ -334,7 +334,7 @@ targetfiles.forEach(x=>{
 });
 
 //Files to delete
-for(const deleteTarget of targetfiles.filter(x=>!sourcefiles.find(y=>x.filename===y.filename))) {
+for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
     const message = gitHubMessage('Delete page',deleteTarget.name);
     const options = {
         method: 'DELETE',
@@ -352,7 +352,7 @@ for(const deleteTarget of targetfiles.filter(x=>!sourcefiles.find(y=>x.filename=
 }
 
 //ADD/UPDATE
-for(const sourcefile of sourcefiles) {
+for(const sourcefile of manifest.posts) {
     if(sourcefile.ignore) {
         console.log(`Ignored: ${sourcefile.filename}`);
         ignore_count++;
@@ -371,6 +371,8 @@ for(const sourcefile of sourcefiles) {
             const mysha = sha1(sourcefile.html);
             if(shamatch(mysha, targetfile.sha)) {
                 console.log(`SHA matched: ${targetfile.path}`);
+                sourcefile.wp_sha = mysha;
+                sourcefile.github_sha = targetfile.sha;
                 sha_match_count++;
             } else {
                 //compare
@@ -389,6 +391,8 @@ for(const sourcefile of sourcefiles) {
                 } else {
                     console.log(`File compare matched: ${sourcefile.filename}`);
                     shalink(mysha, targetcontent.sha);
+                    sourcefile.wp_sha = mysha;
+                    sourcefile.github_sha = targetfile.sha;
                     binary_match_count++;
                 }
             }
@@ -435,6 +439,13 @@ const update_manifest = async () => {
 
     //Remove single use sha counts
     manifest.shadabase.forEach(x=>{if(x.matchcount===1) delete x.matchcount;});
+
+    //Remove content from manifest
+    manifest.posts.forEach(x=>{
+        delete x.content;
+        delete x.html;
+        delete x.meta;
+    });
 
     //get existing manifest for branch compare
     const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
