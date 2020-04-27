@@ -124,26 +124,40 @@ const shalink = (wpsha, githubsha) => {
     else
         manifest.shadabase.push({wpsha, githubsha, matchcount:1});
 }
+
+const loadMedia = async () => {
+ 
+    //List of WP attachments
+    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=view&per_page=100`)
+
+    //List of individual WP attachment sized
+    manifest.media = [];
+    for (const sourceAttachment of sourceAttachments)
+        for (const sizename of sourceAttachment.media_type==='image' ? Object.keys(sourceAttachment.media_details.sizes) : [null]) {
+            const newmedia = sizename ? sourceAttachment.media_details.sizes[sizename] : sourceAttachment;
+
+
+            if (!newmedia.file)
+                newmedia.file = `${newmedia.slug}.${newmedia.source_url.split('.').pop()}`
+            
+            manifest.media.push(
+                {
+                    file : newmedia.file,
+                    modified : newmedia.modified || sourceAttachment.modified,
+                    source_url : newmedia.source_url,
+                     //flatten the file path
+                    newpath : `${githubImagesTargetFolder}${wpTargetFilePrefix}/${newmedia.file}`,
+                    mime_type : newmedia.mime_type
+                }
+            );
+        }
+    manifest.media.sort((a, b) => (a.file || '').localeCompare(b.file));
+}
+
+await loadMedia();
+
 //Lift of github attachments
 const targetAttachmentFiles = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
-
-//List of WP attachments
-const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=embed&per_page=100`)
-
-//List of individual WP attachment sized
-const sourceAttachmentSizes = [];
-for (const sourceAttachment of sourceAttachments)
-    for (const sizename of sourceAttachment.media_type==='image' ? Object.keys(sourceAttachment.media_details.sizes) : [null]) {
-        const sourceAttachmentSize = sizename ? sourceAttachment.media_details.sizes[sizename] : sourceAttachment;
-
-
-        if (!sourceAttachmentSize.file)
-            sourceAttachmentSize.file = `${sourceAttachmentSize.slug}.${sourceAttachmentSize.source_url.split('.').pop()}`
-        
-        //flatten the file path
-        sourceAttachmentSize.newpath = `${githubImagesTargetFolder}${wpTargetFilePrefix}/${sourceAttachmentSize.file}`;
-        sourceAttachmentSizes.push(sourceAttachmentSize);
-    }
 
 //List of WP categories
 const categories = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
@@ -188,7 +202,7 @@ sourcefiles.forEach(sourcefile => {
     sourcefile.ignore = matchedtags.includes(tag_ignore); //do-not-deploy
 
     //if there are attachments, fix the links
-    for (const filesize of sourceAttachmentSizes) {
+    for (const filesize of manifest.media) {
         const newUrl = filesize.newpath.replace(/^src/,'');
         const setused = () => {
             filesize.usedbyslugs = filesize.usedbyslugs || [];
@@ -214,47 +228,49 @@ sourcefiles.forEach(sourcefile => {
 
 
 //Make sure all the attachment sizes get added
-for (const sourceAttachmentSize of sourceAttachmentSizes) {
-    if(sourceAttachmentSize.usedbyslugs) {
-        const targetAttachmentFile = targetAttachmentFiles.find(x=>x.path===sourceAttachmentSize.newpath);
+for (const sourceMedia of manifest.media) {
+    if(sourceMedia.usedbyslugs) {
+        const targetMedia = targetAttachmentFiles.find(x=>x.path===sourceMedia.newpath);
 
-        if(targetAttachmentFile) {
+        if(targetMedia) {
             //File is used, and it exists in the repo
 
             //binary compare
-            const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
+            const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceMedia.source_url}`);
             const sourcebuffer = await sourcefilebytes.arrayBuffer();
             const sourceBuffer = Buffer.from(sourcebuffer);
             const sourcesha = sha1(sourceBuffer);
 
-            if(shamatch(sourcesha,targetAttachmentFile.sha)) {
-                console.log(`File sha matched: ${sourceAttachmentSize.file}`);
+            if(shamatch(sourcesha,targetMedia.sha)) {
+                console.log(`File sha matched: ${sourceMedia.file}`);
+                sourceMedia.wpsha = sourcesha;
+                sourceMedia.githubsha = targetMedia.sha;
                 sha_match_count++;
             } else {
-                console.log(`File sha NO MATCH!!!: ${sourceAttachmentSize.file}`);
+                console.log(`File sha NO MATCH!!!: ${sourceMedia.file}`);
 
-                const targetfilebytes = await fetch(targetAttachmentFile.download_url,defaultoptions());
+                const targetfilebytes = await fetch(targetMedia.download_url,defaultoptions());
                 const targetbuffer = await targetfilebytes.arrayBuffer();
                 const targetBuffer = Buffer.from(targetbuffer);
         
                 if(targetBuffer.equals(sourceBuffer)) {
                     //files are the same...set sha to match
-                    console.log(`File binary matched: ${sourceAttachmentSize.file}`);
-                    shalink(sourcesha,targetAttachmentFile.sha);
+                    console.log(`File binary matched: ${sourceMedia.file}`);
+                    shalink(sourcesha,targetMedia.sha);
                 } else {
                     //files differ...time to update
-                    console.log(`File binary NO MATCH!!!...needs update: ${sourceAttachmentSize.file}`);            
+                    console.log(`File binary NO MATCH!!!...needs update: ${sourceMedia.file}`);            
                     let body = {
                         committer,
                         branch,
                         content : sourceBuffer.toString('base64'),
-                        message : gitHubMessage('Update file',targetAttachmentFile.name),
-                        sha : targetAttachmentFile.sha
+                        message : gitHubMessage('Update file',targetMedia.name),
+                        sha : targetMedia.sha
                     };
 
-                    await fetchJSON(targetAttachmentFile.url, getPutOptions(body))
+                    await fetchJSON(targetMedia.url, getPutOptions(body))
                         .then(() => {
-                            console.log(`UPDATE Success: ${sourceAttachmentSize.filename}`);
+                            console.log(`UPDATE Success: ${sourceMedia.filename}`);
                         });
                     
                     update_count++;
@@ -262,10 +278,10 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
             }
         } else {
             //File is used, and it needs to be added to the repo
-            const filebytes =  await fetch(`${wordPressUrl}${sourceAttachmentSize.source_url}`);
+            const filebytes =  await fetch(`${wordPressUrl}${sourceMedia.source_url}`);
             const buffer = await filebytes.arrayBuffer();
             const content = Buffer.from(buffer).toString('base64');
-            const message = gitHubMessage('Add file',sourceAttachmentSize.file);
+            const message = gitHubMessage('Add file',sourceMedia.file);
 
             const fileAddOptions = getPutOptions({
                 message,
@@ -274,23 +290,23 @@ for (const sourceAttachmentSize of sourceAttachmentSizes) {
                 content
             });
         
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceAttachmentSize.newpath}`, fileAddOptions)
+            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceMedia.newpath}`, fileAddOptions)
                 .then(() => {
-                    console.log(`ATTACHMENT ADD Success: ${sourceAttachmentSize.file}`);
+                    console.log(`ATTACHMENT ADD Success: ${sourceMedia.file}`);
                 });
             
             attachment_add_count++;
         }
     } else {
         //Not used...why is it in wordpress?
-        console.log(`Unused file in Wordpress: ${sourceAttachmentSize.file}`);
+        console.log(`Unused file in Wordpress: ${sourceMedia.file}`);
     }
 }
 
 //Remove extra attachment sizes
 for (const targetAttachmentSize of targetAttachmentFiles)
     //If this file shouldn't be there, remove it
-    if(!sourceAttachmentSizes.find(x=>targetAttachmentSize.path===x.newpath&&x.usedbyslugs)) {
+    if(!manifest.media.find(x=>targetAttachmentSize.path===x.newpath&&x.usedbyslugs)) {
         const message = gitHubMessage('Delete file',targetAttachmentSize.name);
         const options = {
             method: 'DELETE',
