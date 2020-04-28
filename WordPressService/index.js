@@ -389,12 +389,11 @@ else {
 }
 
     context.res = {
-        body : {pinghistory},
+        body: {pinghistory},
         headers: {
             'Content-Type' : 'application/json'
         }
     };
-
 
     if(postTranslationUpdates&&translationUpdatePayload.length>0) {
         const postTranslationOptions = {
