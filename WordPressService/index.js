@@ -13,12 +13,6 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
-const translationUpdatePayload = [];
-const translationUpdateAddPost = Post => {
-    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
-}
-
 const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
@@ -36,6 +30,12 @@ const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
+
+const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
+const translationUpdatePayload = [];
+const translationUpdateAddPost = Post => {
+    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+}
 
 module.exports = async function (context, req) {
     //Logging data
