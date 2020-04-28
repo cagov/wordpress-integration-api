@@ -402,7 +402,7 @@ else {
             body: JSON.stringify({posts:translationUpdatePayload})
         };
     
-        await fetchJSON(translationUpdateEndpointUrl, postTranslationOptions)
+        await fetch(translationUpdateEndpointUrl, postTranslationOptions)
             .then(() => {console.log(`Translation Update POST Success`);})
     }
 
