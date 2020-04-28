@@ -395,13 +395,14 @@ else {
         }
     };
 
-    const postTranslationOptions = {
-        method: 'POST',
-        body: JSON.stringify({posts:translationUpdatePayload})
-    };
 
-    if(postTranslationUpdates) {
-        fetchJSON(translationUpdateEndpointUrl, postTranslationOptions)
+    if(postTranslationUpdates&&translationUpdatePayload.length>0) {
+        const postTranslationOptions = {
+            method: 'POST',
+            body: JSON.stringify({posts:translationUpdatePayload})
+        };
+    
+        await fetchJSON(translationUpdateEndpointUrl, postTranslationOptions)
             .then(() => {console.log(`Translation Update POST Success`);})
     }
 
