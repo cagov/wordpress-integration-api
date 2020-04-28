@@ -9,7 +9,7 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = true;
 //const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
@@ -507,10 +507,9 @@ else {
     if(postTranslationUpdates&&translationUpdatePayload.length>0) {
         const postTranslationOptions = {
             method: 'POST',
-            body: JSON.stringify({posts:translationUpdatePayload})
+            body: JSON.stringify({Posts:translationUpdatePayload})
         };
-    
-        await fetchJSON(translationUpdateEndpointUrl, postTranslationOptions)
+        await fetch(translationUpdateEndpointUrl, postTranslationOptions)
             .then(() => {console.log(`Translation Update POST Success`);})
     }
 
