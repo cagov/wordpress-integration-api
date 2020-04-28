@@ -9,7 +9,7 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
 //const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
@@ -120,7 +120,7 @@ const shalink = (wp_sha, github_sha) => {
 }
 
 //load the manifest from github
-const manifest = await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions());
+const manifest = (await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions())) || {};
 
 //shadabase is built with sha data from posts/media
 manifest.shadabase = [];
@@ -145,6 +145,7 @@ const loadMedia = async () => {
             manifest.media.push(
                 {
                     file : newmedia.file,
+                    id : newmedia.id || sourceAttachment.id,
                     modified : newmedia.modified || sourceAttachment.modified,
                     wp_path : newmedia.source_url,
                      //flatten the file path
@@ -178,6 +179,7 @@ const getWordPressPosts = async () => {
         (await fetchJSON(`${fetchquery}&page=${currentpage}`)).forEach(x=>sourcefiles.push(x));
     
     return sourcefiles.map(sf=>({
+        id : sf.id,
         name : sf.name,
         filename : sf.slug,
         slug : sf.slug,
