@@ -5,15 +5,21 @@ const sha1 = require('sha1');
 let pinghistory = []; //Used to log updates
 let shadabase = {}; //Used to hold sha compare hashes for faster compares
 
+//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+
 const committer = {
     'name': 'WordPressService',
     'email': 'data@alpha.ca.gov'
 };
 
-const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
+const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
+const translationUpdatePayload = [];
+const translationUpdateAddPost = Post => {
+    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+}
 
-const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
-//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
+const githubApiUrl = 'https://api.github.com/repos/cagov/covid19/';
 
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
@@ -312,6 +318,7 @@ const vacr = 1;
                             .then(() => {console.log(`UPDATE Success: ${sourcefile.filename}`);update_count++;})
 
                         //shalink(mysha, result.sha);
+                        translationUpdateAddPost(sourcefile);
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
                         shalink(mysha, targetcontent.sha);
@@ -326,6 +333,8 @@ const vacr = 1;
                 
                 await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
                     .then(() => {console.log(`ADD Success: ${sourcefile.filename}`);add_count++;})
+
+                translationUpdateAddPost(sourcefile);
             }
         }
     }
@@ -349,6 +358,8 @@ const vacr = 1;
     if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
     if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
     if(total_changes>0) log.total_changes = total_changes;
+    if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
+    if(req.body) log.RequestBody = req.body;
 
     pinghistory.unshift(log);
 //Branch done
@@ -377,13 +388,22 @@ else {
     });
 }
 
-
     context.res = {
-        body: {pinghistory},
+        body : {pinghistory},
         headers: {
             'Content-Type' : 'application/json'
         }
     };
+
+    const postTranslationOptions = {
+        method: 'POST',
+        body: JSON.stringify({posts:translationUpdatePayload})
+    };
+
+    if(postTranslationUpdates) {
+        fetchJSON(translationUpdateEndpointUrl, postTranslationOptions)
+            .then(() => {console.log(`Translation Update POST Success`);})
+    }
 
     context.done();
 }
