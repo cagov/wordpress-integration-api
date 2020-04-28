@@ -9,9 +9,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'];
-//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'];
-
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -33,6 +32,12 @@ const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
+
+const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
+const translationUpdatePayload = [];
+const translationUpdateAddPost = Post => {
+    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+}
 
 module.exports = async function (context, req) {
 //Logging data
@@ -388,6 +393,8 @@ for(const sourcefile of manifest.posts) {
                             console.log(`UPDATE Success: ${sourcefile.filename}`);
                         });
                     update_count++;
+                    
+                    translationUpdateAddPost(sourcefile);
                 } else {
                     console.log(`File compare matched: ${sourcefile.filename}`);
                     shalink(mysha, targetcontent.sha);
@@ -404,6 +411,8 @@ for(const sourcefile of manifest.posts) {
             
             await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
                 .then(() => {console.log(`ADD Success: ${sourcefile.filename}`);add_count++;})
+
+            translationUpdateAddPost(sourcefile);
         }
     }
 }
@@ -427,6 +436,8 @@ if(attachment_add_count>0) log.attachment_add_count = attachment_add_count;
 if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
 if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
 if(total_changes>0) log.total_changes = total_changes;
+if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
+if(req.body) log.RequestBody = req.body;
 
 pinghistory.unshift(log);
 //Branch done
@@ -492,6 +503,16 @@ else {
             'Content-Type' : 'application/json'
         }
     };
+
+    if(postTranslationUpdates&&translationUpdatePayload.length>0) {
+        const postTranslationOptions = {
+            method: 'POST',
+            body: JSON.stringify({posts:translationUpdatePayload})
+        };
+    
+        await fetchJSON(translationUpdateEndpointUrl, postTranslationOptions)
+            .then(() => {console.log(`Translation Update POST Success`);})
+    }
 
     console.log('done.');
     context.done();
