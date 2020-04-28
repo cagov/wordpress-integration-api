@@ -87,7 +87,6 @@ const WorkBranchIsSynced = async () => {
 const prepareWorkBranch = async () => {
     //see if the work and source branch are already lined up
 
-
     if(await WorkBranchIsSynced()) {
         //workbranch and sourcebranch match...no merge needed
         console.log(`MERGE Skipped: ${branch} matches ${sourcebranch}`)
@@ -160,7 +159,7 @@ const loadMedia = async () => {
 await loadMedia();
 
 //List of WP categories
-const categories = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
+const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
     .map(x=>({id:x.id,name:x.name}));
 
 //List of WP Tags
@@ -187,7 +186,8 @@ const getWordPressPosts = async () => {
         meta : sf.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim(),
         modified : sf.modified_gmt,
         content : sf.content.rendered,
-        tags : defaultTags.concat(sf.tags.map(x=>taglist.find(y=>y.id===x).name))
+        tags : defaultTags.concat(sf.tags.map(x=>taglist.find(y=>y.id===x).name)),
+        category : sf.categories.length>0 ? categorylist.find(y=>y.id===sf.categories[0]).name : null
     }));
 }
 
@@ -519,28 +519,22 @@ else {
     context.done();
 }
 
-function getPacificTimeNow() {
+const getPacificTimeNow = () => {
     let usaTime = new Date().toLocaleString("en-US", {timeZone: "America/Los_Angeles"});
     usaTime = new Date(usaTime);
     return usaTime.toLocaleString();
-}
+};
 
-function authheader() {
-    return {
-        'Authorization' : `Bearer ${process.env["GITHUB_TOKEN"]}`,
-        'Content-Type': 'application/json'
-    };
-}
+const authheader = () => ({
+    'Authorization' : `Bearer ${process.env["GITHUB_TOKEN"]}`,
+    'Content-Type': 'application/json'
+});
 
-function defaultoptions() {
-    return {method: 'GET', headers:authheader() }
-}
+const defaultoptions = () => ({method: 'GET', headers:authheader() });
 
-function gitHubMessage(action, file) {
-    return `${action} - ${file}`;
-}
+const gitHubMessage = (action, file) => `${action} - ${file}`;
 
-function JsonFromHtmlTables(html) {    
+const JsonFromHtmlTables = html => {    
     const data = {};
   
     JSDOM.fragment(html).querySelectorAll('table').forEach((table,tableindex) => {
@@ -558,5 +552,4 @@ function JsonFromHtmlTables(html) {
     });
   
     return JSON.stringify(data,null,2);
-}
-
+};
