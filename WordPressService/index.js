@@ -23,6 +23,7 @@ const wpTargetFilePrefix = '/wp';
 const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix}`; //no slash at the end
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
+const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
@@ -33,16 +34,16 @@ const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 
-const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
-const translationUpdatePayload = [];
-const translationUpdateAddPost = Post => {
-    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
-}
-
 module.exports = async function (context, req) {
 //Logging data
 const started = getPacificTimeNow();
 let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0;
+
+//Translation Update
+const translationUpdatePayload = [];
+const translationUpdateAddPost = Post => {
+    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+}
 
 //Common Fetch functions
 const fetchJSON = async (URL, options, fetchoutput) => 
