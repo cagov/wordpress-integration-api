@@ -111,12 +111,15 @@ const prepareWorkBranch = async () => {
 };
 await prepareWorkBranch();
 
-const shamatch = (wp_sha, github_sha) => 
-    manifest.shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha);
+const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
+    manifest.shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
 
-const shalink = (wp_sha, github_sha) => {
-    if(wp_sha&&github_sha&&!shamatch(wp_sha, github_sha))
-        manifest.shadabase.push({wp_sha, github_sha});
+const shaslugmodifiedmatch = media => 
+    manifest.shadabase.find(x=>x.slug===media.slug&&x.modified===media.modified);
+
+const shalink = file => {
+    if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified))
+        manifest.shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
 }
 
 //load the manifest from github
@@ -124,13 +127,13 @@ const manifest = (await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaul
 
 //shadabase is built with sha data from posts/media
 manifest.shadabase = [];
-await manifest.media.forEach(x=> {shalink(x.wp_sha,x.github_sha)})
-await manifest.posts.forEach(x=> {shalink(x.wp_sha,x.github_sha)})
+await manifest.media.forEach(x=> {shalink(x)});
+await manifest.posts.forEach(x=> {shalink(x)});
 
 const loadMedia = async () => {
  
     //List of WP attachments
-    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=view&per_page=100`)
+    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=view&per_page=100&orderby=slug&order=asc`)
 
     //List of individual WP attachment sized
     manifest.media = [];
@@ -144,6 +147,7 @@ const loadMedia = async () => {
             
             manifest.media.push(
                 {
+                    slug : newmedia.slug || sourceAttachment.slug,
                     file : newmedia.file,
                     id : newmedia.id || sourceAttachment.id,
                     modified : newmedia.modified || sourceAttachment.modified,
@@ -154,17 +158,17 @@ const loadMedia = async () => {
                 }
             );
         }
-    manifest.media.sort((a, b) => (a.file || '').localeCompare(b.file));
+    //manifest.media.sort((a, b) => (a.file || '').localeCompare(b.file));
 }
 
 await loadMedia();
 
 //List of WP categories
-const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100`))
+const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
     .map(x=>({id:x.id,name:x.name}));
 
 //List of WP Tags
-const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100`))
+const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
     .map(x=>({id:x.id,name:x.name}));
 
 
@@ -172,17 +176,17 @@ const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empt
 const getWordPressPosts = async () => {
     const fetchoutput = {};
     //const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
-    const fetchquery = `${wordPressApiUrl}posts?per_page=100`;
+    const fetchquery = `${wordPressApiUrl}posts?per_page=100&orderby=slug&order=asc`;
     const sourcefiles = await fetchJSON(fetchquery,undefined,fetchoutput);
     const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
     for(let currentpage = 2; currentpage<=totalpages; currentpage++)
         (await fetchJSON(`${fetchquery}&page=${currentpage}`)).forEach(x=>sourcefiles.push(x));
     
     return sourcefiles.map(sf=>({
+        slug : sf.slug,
         id : sf.id,
         name : sf.name,
         filename : sf.slug,
-        slug : sf.slug,
         pagetitle : sf.title.rendered,
         meta : sf.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim(),
         modified : sf.modified_gmt,
@@ -240,50 +244,59 @@ for (const sourceMedia of manifest.media) {
 
         if(targetMedia) {
             //File is used, and it exists in the repo
+            const slugmodrow = shaslugmodifiedmatch(sourceMedia);
 
-            //binary compare
-            const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
-            const sourcebuffer = await sourcefilebytes.arrayBuffer();
-            const sourceBuffer = Buffer.from(sourcebuffer);
-            const sourcesha = sha1(sourceBuffer);
-
-            if(shamatch(sourcesha,targetMedia.sha)) {
-                console.log(`File sha matched: ${sourceMedia.file}`);
-                sourceMedia.wp_sha = sourcesha;
-                sourceMedia.github_sha = targetMedia.sha;
+            if(slugmodrow) {
+                //slug/modfied has not been modified
+                console.log(`Media SLUG/modified MATCH: ${sourceMedia.file}`);
+                sourceMedia.wp_sha = slugmodrow.wp_sha;
+                sourceMedia.github_sha = slugmodrow.github_sha;
                 sha_match_count++;
             } else {
-                console.log(`File sha NO MATCH!!!: ${sourceMedia.file}`);
+                //binary compare
+                const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
+                const sourcebuffer = await sourcefilebytes.arrayBuffer();
+                const sourceBuffer = Buffer.from(sourcebuffer);
+                const sourcesha = sha1(sourceBuffer);
 
-                const targetfilebytes = await fetch(targetMedia.download_url,defaultoptions());
-                const targetbuffer = await targetfilebytes.arrayBuffer();
-                const targetBuffer = Buffer.from(targetbuffer);
-        
-                if(targetBuffer.equals(sourceBuffer)) {
-                    //files are the same...set sha to match
-                    console.log(`File binary matched: ${sourceMedia.file}`);
-                    shalink(sourcesha,targetMedia.sha);
+                if(shamatch(sourcesha,targetMedia.sha, sourceMedia.slug, sourceMedia.modified)) {
+                    console.log(`File SHA MATCH: ${sourceMedia.file}`);
                     sourceMedia.wp_sha = sourcesha;
                     sourceMedia.github_sha = targetMedia.sha;
+                    sha_match_count++;
                 } else {
-                    //files differ...time to update
-                    console.log(`File binary NO MATCH!!!...needs update: ${sourceMedia.file}`);            
-                    let body = {
-                        committer,
-                        branch,
-                        content : sourceBuffer.toString('base64'),
-                        message : gitHubMessage('Update file',targetMedia.name),
-                        sha : targetMedia.sha
-                    };
+                    console.log(`File sha NO MATCH!!!: ${sourceMedia.file}`);
 
-                    await fetchJSON(targetMedia.url, getPutOptions(body))
-                        .then(() => {
-                            console.log(`UPDATE Success: ${sourceMedia.filename}`);
-                        });
-                    
-                    update_count++;
+                    const targetfilebytes = await fetch(targetMedia.download_url,defaultoptions());
+                    const targetbuffer = await targetfilebytes.arrayBuffer();
+                    const targetBuffer = Buffer.from(targetbuffer);
+            
+                    if(targetBuffer.equals(sourceBuffer)) {
+                        //files are the same...set sha to match
+                        console.log(`File BINARY MATCH: ${sourceMedia.file}`);
+                        sourceMedia.wp_sha = sourcesha;
+                        sourceMedia.github_sha = targetMedia.sha;
+                        binary_match_count++;
+                    } else {
+                        //files differ...time to update
+                        console.log(`File binary NO MATCH!!!...needs update: ${sourceMedia.file}`);            
+                        let body = {
+                            committer,
+                            branch,
+                            content : sourceBuffer.toString('base64'),
+                            message : gitHubMessage('Update file',targetMedia.name),
+                            sha : targetMedia.sha
+                        };
+
+                        await fetchJSON(targetMedia.url, getPutOptions(body))
+                            .then(() => {
+                                console.log(`UPDATE Success: ${sourceMedia.file}`);
+                            });
+                        
+                        update_count++;
+                    }
                 }
-            }
+            } //Binary Compare
         } else {
             //File is used, and it needs to be added to the repo
             const filebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
@@ -307,7 +320,7 @@ for (const sourceMedia of manifest.media) {
         }
     } else {
         //Not used...why is it in wordpress?
-        console.log(`Unused file in Wordpress: ${sourceMedia.file}`);
+        console.log(`- Unused file in Wordpress: ${sourceMedia.file}`);
     }
 }
 
@@ -377,8 +390,8 @@ for(const sourcefile of manifest.posts) {
         if(targetfile) {
             //UPDATE
             const mysha = sha1(sourcefile.html);
-            if(shamatch(mysha, targetfile.sha)) {
-                console.log(`SHA matched: ${targetfile.path}`);
+            if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
+                console.log(`SHA matched: ${sourcefile.filename}`);
                 sourcefile.wp_sha = mysha;
                 sourcefile.github_sha = targetfile.sha;
                 sha_match_count++;
@@ -400,9 +413,9 @@ for(const sourcefile of manifest.posts) {
                     translationUpdateAddPost(sourcefile);
                 } else {
                     console.log(`File compare matched: ${sourcefile.filename}`);
-                    shalink(mysha, targetcontent.sha);
                     sourcefile.wp_sha = mysha;
-                    sourcefile.github_sha = targetfile.sha;
+                    sourcefile.github_sha = targetcontent.sha;
+
                     binary_match_count++;
                 }
             }
