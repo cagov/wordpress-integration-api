@@ -507,7 +507,7 @@ else {
     if(postTranslationUpdates&&translationUpdatePayload.length>0) {
         const postTranslationOptions = {
             method: 'POST',
-            body: JSON.stringify({Posts:translationUpdatePayload})
+            body: JSON.stringify({posts:translationUpdatePayload})
         };
         await fetch(translationUpdateEndpointUrl, postTranslationOptions)
             .then(() => {console.log(`Translation Update POST Success`);})
