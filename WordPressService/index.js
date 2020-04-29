@@ -58,7 +58,17 @@ const fetchJSON = async (URL, options, fetchoutput) =>
             fetchoutput.response = response;
         return response;
     })
-    .then(response => response.ok ? (response.status===200 ? response.json() : null) : Promise.reject(response))
+    .then(response =>
+        response.ok
+        ? (
+            response.status===200||response.status===201
+            ? response.json()
+            : null)
+        : (
+            response.status===404
+            ? []
+            : Promise.reject(response))
+       )
     .catch(async response => {
         const json = (await (response.json ? response.json() : null)) || response;
 
@@ -119,21 +129,27 @@ await prepareWorkBranch();
 const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
     manifest.shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
 
-const shaslugmodifiedmatch = media => 
-    manifest.shadabase.find(x=>x.slug===media.slug&&x.modified===media.modified);
+//load the manifest from github and create the shadabase from the saved post/media data
+const manifest = (await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions())) || {};
+manifest.shadabase = [];
 
 const shalink = file => {
     if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified))
-        manifest.shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
+    manifest.shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
 }
 
-//load the manifest from github
-const manifest = (await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions())) || {};
-
 //shadabase is built with sha data from posts/media
-manifest.shadabase = [];
 await manifest.media.forEach(x=> {shalink(x)});
 await manifest.posts.forEach(x=> {shalink(x)});
+
+const shaslugmodifiedmatch = media => 
+    manifest.shadabase.find(x=>x.slug===media.slug&&x.modified===media.modified);
+
+//set the sha values in a file record
+const shaupdate = (file, wp_sha, github_sha) => {
+    file.wp_sha = wp_sha;
+    file.github_sha = github_sha;
+}
 
 const loadMedia = async () => {
  
@@ -255,8 +271,7 @@ for (const sourceMedia of manifest.media) {
             if(slugmodrow) {
                 //slug/modfied has not been modified
                 console.log(`Media SLUG/modified MATCH: ${sourceMedia.file}`);
-                sourceMedia.wp_sha = slugmodrow.wp_sha;
-                sourceMedia.github_sha = slugmodrow.github_sha;
+                shaupdate(sourceMedia, slugmodrow.wp_sha, slugmodrow.github_sha);
                 sha_match_count++;
             } else {
                 //binary compare
@@ -267,8 +282,7 @@ for (const sourceMedia of manifest.media) {
 
                 if(shamatch(sourcesha,targetMedia.sha, sourceMedia.slug, sourceMedia.modified)) {
                     console.log(`File SHA MATCH: ${sourceMedia.file}`);
-                    sourceMedia.wp_sha = sourcesha;
-                    sourceMedia.github_sha = targetMedia.sha;
+                    shaupdate(sourceMedia, sourcesha, targetMedia.sha);
                     sha_match_count++;
                 } else {
                     console.log(`File sha NO MATCH!!!: ${sourceMedia.file}`);
@@ -280,8 +294,7 @@ for (const sourceMedia of manifest.media) {
                     if(targetBuffer.equals(sourceBuffer)) {
                         //files are the same...set sha to match
                         console.log(`File BINARY MATCH: ${sourceMedia.file}`);
-                        sourceMedia.wp_sha = sourcesha;
-                        sourceMedia.github_sha = targetMedia.sha;
+                        shaupdate(sourceMedia, sourcesha, targetMedia.sha);
                         binary_match_count++;
                     } else {
                         //files differ...time to update
@@ -294,10 +307,13 @@ for (const sourceMedia of manifest.media) {
                             sha : targetMedia.sha
                         };
 
-                        await fetchJSON(targetMedia.url, getPutOptions(body))
-                            .then(() => {
+                        const updateResult = await fetchJSON(targetMedia.url, getPutOptions(body))
+                            .then(r => {
                                 console.log(`UPDATE Success: ${sourceMedia.file}`);
+                                return r;
                             });
+
+                        shaupdate(sourceMedia, sourcesha, updateResult.content.sha);
                         
                         update_count++;
                     }
@@ -307,7 +323,9 @@ for (const sourceMedia of manifest.media) {
             //File is used, and it needs to be added to the repo
             const filebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
             const buffer = await filebytes.arrayBuffer();
-            const content = Buffer.from(buffer).toString('base64');
+            const sourceBuffer = Buffer.from(buffer);
+            const sourcesha = sha1(sourceBuffer);
+            const content = sourceBuffer.toString('base64');
             const message = gitHubMessage('Add file',sourceMedia.file);
 
             const fileAddOptions = getPutOptions({
@@ -317,10 +335,13 @@ for (const sourceMedia of manifest.media) {
                 content
             });
         
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceMedia.github_path}`, fileAddOptions)
-                .then(() => {
+            const addresult = await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceMedia.github_path}`, fileAddOptions)
+                .then(r => {
                     console.log(`ATTACHMENT ADD Success: ${sourceMedia.file}`);
+                    return r;
                 });
+
+            shaupdate(sourceMedia, sourcesha, addresult.content.sha);
             
             attachment_add_count++;
         }
@@ -386,6 +407,7 @@ for(const sourcefile of manifest.posts) {
     } else {
         const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
         const content = Buffer.from(sourcefile.html).toString('base64');
+        const mysha = sha1(sourcefile.html);
 
         let body = {
             committer,
@@ -395,11 +417,10 @@ for(const sourcefile of manifest.posts) {
 
         if(targetfile) {
             //UPDATE
-            const mysha = sha1(sourcefile.html);
+            
             if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
                 console.log(`SHA matched: ${sourcefile.filename}`);
-                sourcefile.wp_sha = mysha;
-                sourcefile.github_sha = targetfile.sha;
+                shaupdate(sourcefile, mysha, targetfile.sha);
                 sha_match_count++;
             } else {
                 //compare
@@ -410,17 +431,18 @@ for(const sourcefile of manifest.posts) {
                     body.message=gitHubMessage('Update page',targetfile.name);
                     body.sha=targetfile.sha;
 
-                    await fetchJSON(targetfile.url, getPutOptions(body))
-                        .then(() => {
+                    const updateResult = await fetchJSON(targetfile.url, getPutOptions(body))
+                        .then(r => {
                             console.log(`UPDATE Success: ${sourcefile.filename}`);
+                            return r;
                         });
                     update_count++;
                     
+                    shaupdate(sourcefile, mysha, updateResult.content.sha);
                     translationUpdateAddPost(sourcefile);
                 } else {
                     console.log(`File compare matched: ${sourcefile.filename}`);
-                    sourcefile.wp_sha = mysha;
-                    sourcefile.github_sha = targetcontent.sha;
+                    shaupdate(sourcefile, mysha, targetcontent.sha);
 
                     binary_match_count++;
                 }
@@ -431,9 +453,11 @@ for(const sourcefile of manifest.posts) {
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
             body.message=gitHubMessage('Add page',newFileName);
             
-            await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
-                .then(() => {console.log(`ADD Success: ${sourcefile.filename}`);add_count++;})
+            const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
+                .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
+            add_count++;
+            shaupdate(sourcefile, mysha, addResult.content.sha);
             translationUpdateAddPost(sourcefile);
         }
     }
