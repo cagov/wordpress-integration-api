@@ -33,6 +33,7 @@ const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
+const tag_langprefix = 'lang-';
 
 module.exports = async function (context, req) {
 //Logging data
@@ -42,7 +43,10 @@ let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, s
 //Translation Update
 const translationUpdatePayload = [];
 const translationUpdateAddPost = Post => {
-    translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+    if(!Post.tags.find(pt=>pt.startsWith(tag_langprefix))) {
+        //Send English only
+        translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+    }
 }
 
 //Common Fetch functions
