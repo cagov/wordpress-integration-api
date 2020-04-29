@@ -34,6 +34,7 @@ const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
+const tag_langdefault = 'en';
 
 module.exports = async function (context, req) {
 //Logging data
@@ -212,6 +213,7 @@ manifest.posts.forEach(sourcefile => {
     sourcefile.isTableData = sourcefile.tags.includes(tag_table_data);
     sourcefile.addToSitemap = !sourcefile.tags.includes(tag_nocrawl);
     sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
+    sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
 
     //if there are attachments, fix the links
     for (const filesize of manifest.media) {
