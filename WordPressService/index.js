@@ -151,6 +151,7 @@ module.exports = async function (context, req) {
     const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100`))
         .map(x=>({id:x.id,name:x.name}));
 
+
     //Query WP files
     const getWordPressPosts = async () => {
         const fetchoutput = {};
