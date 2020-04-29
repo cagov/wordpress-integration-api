@@ -31,6 +31,7 @@ const tag_ignore = 'do-not-deploy';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
+const tag_langprefix = 'lang-';
 
 module.exports = async function (context, req) {
     //Logging data
@@ -40,7 +41,10 @@ module.exports = async function (context, req) {
     //Translation Update
     const translationUpdatePayload = [];
     const translationUpdateAddPost = Post => {
-        translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+        if(!Post.tags.find(pt=>pt.startsWith(tag_langprefix))) {
+            //Send English only
+            translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+        }
     }    
 
     //Common Fetch functions
@@ -147,6 +151,7 @@ module.exports = async function (context, req) {
     const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100`))
         .map(x=>({id:x.id,name:x.name}));
 
+    //const tagsLanguage = taglist.map(x=>x.name).filter(x=>x.startsWith('lang-'));
 
     //Query WP files
     const getWordPressPosts = async () => {
