@@ -232,21 +232,22 @@ manifest.posts.forEach(sourcefile => {
     sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
 
     //if there are attachments, fix the links
-    for (const filesize of manifest.media) {
-        const newUrl = filesize.github_path.replace(/^src/,'');
-        const setused = () => {
-            filesize.usedbyslugs = filesize.usedbyslugs || [];
-            filesize.usedbyslugs.push(sourcefile.slug);
-            attachments_used_count++;
+    if(!sourcefile.isTableData) 
+        for (const filesize of manifest.media) {
+            const newUrl = filesize.github_path.replace(/^src/,'');
+            const setused = () => {
+                filesize.usedbyslugs = filesize.usedbyslugs || [];
+                filesize.usedbyslugs.push(sourcefile.slug);
+                attachments_used_count++;
+            }
+            if(content.match(newUrl)) {
+                setused();
+            }
+            if(content.match(filesize.wp_path)) {
+                content = content.replace(new RegExp(filesize.wp_path, 'g'),newUrl);
+                setused();
+            }
         }
-        if(content.match(newUrl)) {
-            setused();
-        }
-        if(content.match(filesize.wp_path)) {
-            content = content.replace(new RegExp(filesize.wp_path, 'g'),newUrl);
-            setused();
-        }
-    }
 
     if (sourcefile.isTableData)
         sourcefile.html = JsonFromHtmlTables(content);
