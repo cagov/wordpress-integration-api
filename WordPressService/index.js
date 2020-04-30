@@ -503,7 +503,7 @@ const update_manifest = async () => {
     const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
     const content = Buffer.from(JSON.stringify(manifest,null,2)).toString('base64');
 
-    if(content!==currentmanifest.content.replace(/\n/g,'')) {
+    if(!currentmanifest.content||content!==currentmanifest.content.replace(/\n/g,'')) {
         //manifest changed
         const body = {
             committer,
@@ -523,49 +523,6 @@ if(await WorkBranchIsSynced())
     console.log(`MERGE Skipped - No Changes`);
 else {
     //Something changed..merge time (async, since we are done here.)
-
-    //create a pull request      
-    const githubApiPulls = 'pulls';
-    const prbody = {
-        method: 'POST',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            head: branch,
-            base: sourcebranch,
-            title: 'test pull request',
-            body: 'my pull request body'
-        })
-    };
-
-//    const PrResult = await fetchJSON(`${githubApiUrl}${githubApiPulls}`, prbody)
-//        .then(r => {
-//            console.log(`PR create Success`);
-//            return r;
-//        });
-
-const prsha = PrResult.head.sha;
-const prurl = PrResult.url;
-
-
-const prmergebody = {
-    method: 'PUT',
-    headers: authheader(),
-    body: JSON.stringify({
-        committer,
-        commit_title: 'PR merge commit title',
-        commit_message: 'PR merge commit message',
-        sha: prsha,
-        merge_method: 'squash'
-    })
-};
-//const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
-//.then(r => {
-//    console.log(`PR merge create Success`);
-//    return r;
-//});
-
-
     mergetargets.forEach(async mergetarget =>  {
         //Merge
         const mergeOptions = {
