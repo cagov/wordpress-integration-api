@@ -26,6 +26,8 @@ const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
+const translationDownloadUrl = `https://storage.googleapis.com/covid19-ca-files-avantpage/`;
+const translatedLanguages = ['ar_AA','es_US','ko_KR','tl_PH','vi_VN','zh_TW'];
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
@@ -468,22 +470,50 @@ for(const sourcefile of manifest.posts) {
 }
 
 //Add translation pings
-if(req.body&&req.headers['content-type']==='application/json') {
-    const content = Buffer.from(JSON.stringify(req.body,null,2)).toString('base64');
-
-    let body = {
-        committer,
-        branch,
-        content
-    };
+const addTranslationPings = async () => {
+    if(!req.body||req.headers['content-type']!=='application/json') return;
 
     const newFileName = `ping-${new Date().getTime()}.json`;
     const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
-    body.message=gitHubMessage('Add translation ping',newFileName);
+
+    const pingbody = {
+        committer,
+        branch,
+        message : gitHubMessage('Add translation ping',newFileName),
+        content : Buffer.from(JSON.stringify(req.body,null,2)).toString('base64')
+    };
     
-    const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
-        .then(r => {console.log(`Add translation ping Success: ${newFileName}`);return r;});
+    await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
+        .then(r => {console.log(`Add translation ping Success: ${newFileName}`);});
+
+    const files_id = req.body.files_id;
+    const translated_on = req.body.translated_on;
+    const posts = req.body.posts.map(x=>Number(x));
+
+    if(!files_id||!translated_on||!posts) return;
+
+    for(const post_id of posts) {
+        const slug = manifest.posts.find(p=>p.id===post_id).slug;
+
+        for(const lang of translatedLanguages) {
+            const newContentName = `${slug}-${lang}.html`;
+            const file = await fetch(`${translationDownloadUrl}${files_id}/${post_id}/${newContentName}`);
+            const content = await file.text();
+            const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
+
+            const filebody = {
+                committer,
+                branch,
+                message : gitHubMessage('Add translation content',newContentName),
+                content : Buffer.from(content).toString('base64')
+            };
+
+            await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody))
+                .then(r => {console.log(`Add translation content Success: ${newContentName}`);});
+        }
+    }
 }
+await addTranslationPings();
 
 //Add to log
 const total_changes = add_count+update_count+delete_count+attachment_add_count+attachment_delete_count;
