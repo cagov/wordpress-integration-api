@@ -17,6 +17,8 @@ const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
 const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${branch}`;
 const githubManifestPath = `pages/_data/wp/syncmanifest.json`;
+const githubTranslationPingsPath = `pages/translations/pings`;
+const githubTranslationContentPath = `pages/translations/content`;
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
 const wpTargetFilePrefix = '/wp';
@@ -379,7 +381,8 @@ const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githu
 
 //Add custom columns to targetfile data
 targetfiles.forEach(x=>{
-    x.filename = x.name.split('.')[0];
+    //just get the filename, special characters and all
+    x.filename = x.url.split(`${githubApiUrl}${githubApiContents}${githubSyncFolder}/`)[1].split('.')[0].toLowerCase();
 });
 
 //Files to delete
@@ -452,16 +455,34 @@ for(const sourcefile of manifest.posts) {
             //ADD
             const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
-            body.message=gitHubMessage('Add page',newFileName);
+            body.message=gitHubMessage('Add page',sourcefile.pagetitle);
             
             const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
-                .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
+                .then(r => {console.log(`ADD Success: ${sourcefile.pagetitle}`);return r;})
 
             add_count++;
             shaupdate(sourcefile, mysha, addResult.content.sha);
             translationUpdateAddPost(sourcefile);
         }
     }
+}
+
+//Add translation pings
+if(req.body&&req.headers['content-type']==='application/json') {
+    const content = Buffer.from(JSON.stringify(req.body,null,2)).toString('base64');
+
+    let body = {
+        committer,
+        branch,
+        content
+    };
+
+    const newFileName = `ping-${new Date().getTime()}.json`;
+    const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
+    body.message=gitHubMessage('Add translation ping',newFileName);
+    
+    const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
+        .then(r => {console.log(`Add translation ping Success: ${newFileName}`);return r;});
 }
 
 //Add to log
