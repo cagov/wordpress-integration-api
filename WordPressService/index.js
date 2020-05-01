@@ -455,10 +455,10 @@ for(const sourcefile of manifest.posts) {
             //ADD
             const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
-            body.message=gitHubMessage('Add page',sourcefile.pagetitle);
+            body.message=gitHubMessage('Add page',newFileName);
             
             const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
-                .then(r => {console.log(`ADD Success: ${sourcefile.pagetitle}`);return r;})
+                .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
             add_count++;
             shaupdate(sourcefile, mysha, addResult.content.sha);
