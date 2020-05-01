@@ -9,8 +9,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -498,7 +498,8 @@ const addTranslationPings = async () => {
         for(const lang of translatedLanguages) {
             const newContentName = `${slug}-${lang}.html`;
             const file = await fetch(`${translationDownloadUrl}${files_id}/${post_id}/${newContentName}`);
-            const content = await file.text();
+            const html = await file.text();
+            const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${new Date(translated_on).toISOString()}Z"\naddtositemap: false\n---\n${html}`;
             const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
 
             const filebody = {
