@@ -27,7 +27,14 @@ const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
 const translationDownloadUrl = `https://storage.googleapis.com/covid19-ca-files-avantpage/`;
-const translatedLanguages = ['ar_AA','es_US','ko_KR','tl_PH','vi_VN','zh_TW'];
+const translatedLanguages = [
+    {code:'ar_AA',tag:'lang-ar'},
+    {code:'es_US',tag:'lang-es'},
+    {code:'ko_KR',tag:'lang-ko'},
+    {code:'tl_PH',tag:'lang-tl'},
+    {code:'vi_VN',tag:'lang-vi'},
+    {code:'zh_TW',tag:'lang-zh-Hans'}
+];
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
@@ -495,7 +502,9 @@ const addTranslationPings = async () => {
     for(const post_id of posts) {
         const slug = manifest.posts.find(p=>p.id===post_id).slug;
 
-        for(const lang of translatedLanguages) {
+        for(const langRow of translatedLanguages) {
+            const lang = langRow.code;
+
             const newContentName = `${slug}-${lang}.html`;
             const filePath = `${files_id}/${post_id}/${newContentName}`;
             const file = await fetch(`${translationDownloadUrl}${filePath}`);
@@ -504,7 +513,7 @@ const addTranslationPings = async () => {
                 console.log(`FETCH FILE ERROR ${file.status} - ${filePath}`);
             } else {
                 const html = await file.text();
-                const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${new Date(translated_on).toISOString()}Z"\naddtositemap: false\n---\n${html}`;
+                const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${new Date(translated_on).toISOString()}Z"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
                 const newContentPath = `${githubTranslationContentPath}/${filePath}`;
 
                 const filebody = {
