@@ -9,8 +9,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -497,20 +497,26 @@ const addTranslationPings = async () => {
 
         for(const lang of translatedLanguages) {
             const newContentName = `${slug}-${lang}.html`;
-            const file = await fetch(`${translationDownloadUrl}${files_id}/${post_id}/${newContentName}`);
-            const html = await file.text();
-            const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${new Date(translated_on).toISOString()}Z"\naddtositemap: false\n---\n${html}`;
-            const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
+            const filePath = `${files_id}/${post_id}/${newContentName}`;
+            const file = await fetch(`${translationDownloadUrl}${filePath}`);
+            
+            if(file.status!==200) {
+                console.log(`FETCH FILE ERROR ${file.status} - ${filePath}`);
+            } else {
+                const html = await file.text();
+                const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${new Date(translated_on).toISOString()}Z"\naddtositemap: false\n---\n${html}`;
+                const newContentPath = `${githubTranslationContentPath}/${filePath}`;
 
-            const filebody = {
-                committer,
-                branch,
-                message : gitHubMessage('Add translation content',newContentName),
-                content : Buffer.from(content).toString('base64')
-            };
+                const filebody = {
+                    committer,
+                    branch,
+                    message : gitHubMessage('Add translation content',newContentName),
+                    content : Buffer.from(content).toString('base64')
+                };
 
-            await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody))
-                .then(r => {console.log(`Add translation content Success: ${newContentName}`);});
+                await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody))
+                    .then(r => {console.log(`Add translation content Success: ${newContentName}`);});
+            }
         }
     }
 }
