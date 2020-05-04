@@ -494,7 +494,7 @@ const addTranslationPings = async () => {
         .then(r => {console.log(`Add translation ping Success: ${newFileName}`);});
 
     const files_id = req.body.files_id;
-    const translated_on = req.body.translated_on;
+    const translated_on = new Date(req.body.translated_on*1000);
     const posts = req.body.posts.map(x=>Number(x));
 
     if(!files_id||!translated_on||!posts) return;
@@ -513,7 +513,7 @@ const addTranslationPings = async () => {
                 console.log(`FETCH FILE ERROR ${file.status} - ${filePath}`);
             } else {
                 const html = await file.text();
-                const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${new Date(translated_on).toISOString()}Z"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
                 const newContentPath = `${githubTranslationContentPath}/${filePath}`;
 
                 const filebody = {
@@ -523,8 +523,13 @@ const addTranslationPings = async () => {
                     content : Buffer.from(content).toString('base64')
                 };
 
-                await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody))
-                    .then(r => {console.log(`Add translation content Success: ${newContentName}`);});
+                const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
+
+                console.log(
+                    putResult.ok
+                    ? `Add translation content Success: ${newContentName}`
+                    : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
+                );
             }
         }
     }
