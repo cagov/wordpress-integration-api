@@ -19,6 +19,7 @@ const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRe
 const githubManifestPath = `pages/_data/wp/syncmanifest.json`;
 const githubTranslationPingsPath = `pages/translations/pings`;
 const githubTranslationContentPath = `pages/translations/content`;
+const githubTranslationFlatPath = `pages/translated-posts`;
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const githubImagesTargetFolder = 'src/img'; //no slash at the end
 const wpTargetFilePrefix = '/wp';
@@ -513,34 +514,39 @@ const addTranslationPings = async () => {
         if(manifestrecord) {
             const slug = manifestrecord.slug;
 
-            for(const langRow of translatedLanguages) {    
-                const title = `${slug}-${langRow.slugpostfix}`; //replace with real title
+            for(const langRow of translatedLanguages) {
+                const newslug = `${slug}-${langRow.slugpostfix}`;
+                const title = newslug; //replace with real title
 
                 const downloadContentName = `${slug}-${langRow.code}.html`;
                 const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
                 const file = await fetch(`${translationDownloadUrl}${downloadFilePath}`);
                 
                 if(file.status!==200) {
+                    //Can't find the lang file
                     console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
                 } else {
                     const html = await file.text();
 
-                    let content = '';
-                    if (manifestrecord.isTableData)
-                        content = JsonFromHtmlTables(html);
-                    else if (manifestrecord.isFragment)
-                        content = html;
+                    let contentString = '';
+                    if(manifestrecord.isTableData)
+                        contentString = JsonFromHtmlTables(html);
+                    else if(manifestrecord.isFragment)
+                        contentString = html;
                     else 
-                        content = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                        contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
                     
-                    const newContentName = `${slug}-${langRow.slugpostfix}.${manifestrecord.isTableData ? 'json' : 'html'}`;
+                    content = Buffer.from(contentString).toString('base64');
+
+
+                    const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
                     const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
     
                     const filebody = {
                         committer,
                         branch,
                         message : gitHubMessage('Add translation content',newContentName),
-                        content : Buffer.from(content).toString('base64')
+                        content
                     };
     
                     const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
@@ -550,6 +556,37 @@ const addTranslationPings = async () => {
                         ? `Add translation content Success: ${newContentName}`
                         : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
                     );
+
+                    const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
+
+                    const existingFileResponse = await fetch(newURL,defaultoptions())
+
+                    if(existingFileResponse.ok) {
+                        //update
+                        const json = await existingFileResponse.json();
+
+                        let updatebody = {
+                            committer,
+                            branch,
+                            content,
+                            message:gitHubMessage('Update translation',newContentName),
+                            sha:json.sha
+                        };
+    
+                        await fetchJSON(json.url, getPutOptions(updatebody));
+                        console.log(`UPDATE Success: ${newContentName}`);
+                    } else {
+                        //new
+                        let addbody = {
+                            committer,
+                            branch,
+                            content,
+                            message:gitHubMessage('Add translation',newContentName)
+                        };
+                        
+                        await fetchJSON(newURL, getPutOptions(addbody));
+                        console.log(`ADD Success: ${newContentName}`);
+                    }
                 }
             }
         }
