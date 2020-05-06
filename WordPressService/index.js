@@ -58,11 +58,11 @@ let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, s
 //Translation Update
 const translationUpdatePayload = [];
 const translationUpdateAddPost = Post => {
-    if(Post.tags.includes(tag_translate)) {
+    if(Post.translate) {
         //Send pages marked "translate"
         const translationRow = {id : Post.id, slug : Post.slug, modified : Post.modified};
 
-        if(Post.translate) {
+        if(Post.tags.includes(tag_translatepriority)) {
             //priority translation marked
             translationRow.priority = true;
         }
