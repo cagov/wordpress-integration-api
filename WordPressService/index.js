@@ -9,8 +9,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -28,12 +28,13 @@ const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
 const translationDownloadUrl = `https://storage.googleapis.com/covid19-ca-files-avantpage/`;
 const translatedLanguages = [
-    {code:'ar_AA',tag:'lang-ar'},
-    {code:'es_US',tag:'lang-es'},
-    {code:'ko_KR',tag:'lang-ko'},
-    {code:'tl_PH',tag:'lang-tl'},
-    {code:'vi_VN',tag:'lang-vi'},
-    {code:'zh_TW',tag:'lang-zh-Hans'}
+    {code:'ar_AA',tag:'lang-ar',slugpostfix:'ar'},
+    {code:'es_US',tag:'lang-es',slugpostfix:'es'},
+    {code:'ko_KR',tag:'lang-ko',slugpostfix:'ko'},
+    {code:'tl_PH',tag:'lang-tl',slugpostfix:'tl'},
+    {code:'vi_VN',tag:'lang-vi',slugpostfix:'vi'},
+    {code:'zh_TW',tag:'lang-zh-Hant',slugpostfix:'zh-hant'},
+    {code:'zh_CN',tag:'lang-zh-Hans',slugpostfix:'zh-hans'}
 ];
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
@@ -58,12 +59,10 @@ let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, s
 const translationUpdatePayload = [];
 const translationUpdateAddPost = Post => {
     if(Post.tags.includes(tag_translate)) {
-
         //Send pages marked "translate"
-
         const translationRow = {id : Post.id, slug : Post.slug, modified : Post.modified};
 
-        if(Post.tags.includes(tag_translatepriority)) {
+        if(Post.translate) {
             //priority translation marked
             translationRow.priority = true;
         }
@@ -246,7 +245,8 @@ manifest.posts.forEach(sourcefile => {
 
     sourcefile.isFragment = sourcefile.tags.includes(tag_fragment);
     sourcefile.isTableData = sourcefile.tags.includes(tag_table_data);
-    sourcefile.addToSitemap = !sourcefile.tags.includes(tag_nocrawl);
+    sourcefile.addToSitemap = !sourcefile.tags.includes(tag_nocrawl); //do-not-crawl
+    sourcefile.translate = sourcefile.tags.includes(tag_translate);
     sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
     sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
 
@@ -509,38 +509,48 @@ const addTranslationPings = async () => {
 
     for(const post_id of posts) {
         const manifestrecord = manifest.posts.find(p=>p.id===post_id);
-        const slug = manifestrecord.slug;
 
-        for(const langRow of translatedLanguages) {
-            const lang = langRow.code;
+        if(manifestrecord) {
+            const slug = manifestrecord.slug;
 
-            const newContentName = `${slug}-${lang}.html`;
-            const filePath = `${files_id}/${post_id}/${newContentName}`;
-            const file = await fetch(`${translationDownloadUrl}${filePath}`);
-            
-            if(file.status!==200) {
-                console.log(`FETCH FILE ERROR ${file.status} - ${filePath}`);
-            } else {
-                const html = await file.text();
-                const content = manifestrecord.isFragment
-                    ? html
-                    : `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
-                const newContentPath = `${githubTranslationContentPath}/${filePath}`;
+            for(const langRow of translatedLanguages) {    
+                const title = `${slug}-${langRow.slugpostfix}`; //replace with real title
 
-                const filebody = {
-                    committer,
-                    branch,
-                    message : gitHubMessage('Add translation content',newContentName),
-                    content : Buffer.from(content).toString('base64')
-                };
+                const downloadContentName = `${slug}-${langRow.code}.html`;
+                const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
+                const file = await fetch(`${translationDownloadUrl}${downloadFilePath}`);
+                
+                if(file.status!==200) {
+                    console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
+                } else {
+                    const html = await file.text();
 
-                const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
-
-                console.log(
-                    putResult.ok
-                    ? `Add translation content Success: ${newContentName}`
-                    : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
-                );
+                    let content = '';
+                    if (manifestrecord.isTableData)
+                        content = JsonFromHtmlTables(html);
+                    else if (manifestrecord.isFragment)
+                        content = html;
+                    else 
+                        content = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                    
+                    const newContentName = `${slug}-${langRow.slugpostfix}.${manifestrecord.isTableData ? 'json' : 'html'}`;
+                    const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
+    
+                    const filebody = {
+                        committer,
+                        branch,
+                        message : gitHubMessage('Add translation content',newContentName),
+                        content : Buffer.from(content).toString('base64')
+                    };
+    
+                    const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
+    
+                    console.log(
+                        putResult.ok
+                        ? `Add translation content Success: ${newContentName}`
+                        : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
+                    );
+                }
             }
         }
     }
