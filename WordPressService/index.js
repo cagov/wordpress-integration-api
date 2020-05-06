@@ -9,8 +9,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -41,6 +41,8 @@ const githubApiContents = 'contents/';
 const githubApiMerges = 'merges';
 const githubApiBranches = 'branches/';
 const tag_ignore = 'do-not-deploy';
+const tag_translate = 'translate';
+const tag_translatepriority = 'translate-priority';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
@@ -55,9 +57,18 @@ let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, s
 //Translation Update
 const translationUpdatePayload = [];
 const translationUpdateAddPost = Post => {
-    if(!Post.tags.find(pt=>pt.startsWith(tag_langprefix))) {
-        //Send English only
-        translationUpdatePayload.push({id : Post.id, slug : Post.slug, modified : Post.modified});
+    if(Post.tags.includes(tag_translate)) {
+
+        //Send pages marked "translate"
+
+        const translationRow = {id : Post.id, slug : Post.slug, modified : Post.modified};
+
+        if(Post.tags.includes(tag_translatepriority)) {
+            //priority translation marked
+            translationRow.priority = true;
+        }
+
+        translationUpdatePayload.push(translationRow);
     }
 }
 
@@ -163,7 +174,6 @@ const shaupdate = (file, wp_sha, github_sha) => {
 }
 
 const loadMedia = async () => {
- 
     //List of WP attachments
     const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=view&per_page=100&orderby=slug&order=asc`)
 
@@ -190,7 +200,6 @@ const loadMedia = async () => {
                 }
             );
         }
-    //manifest.media.sort((a, b) => (a.file || '').localeCompare(b.file));
 }
 
 await loadMedia();
@@ -202,7 +211,6 @@ const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embe
 //List of WP Tags
 const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
     .map(x=>({id:x.id,name:x.name}));
-
 
 //Query WP files
 const getWordPressPosts = async () => {
@@ -500,7 +508,8 @@ const addTranslationPings = async () => {
     if(!files_id||!translated_on||!posts) return;
 
     for(const post_id of posts) {
-        const slug = manifest.posts.find(p=>p.id===post_id).slug;
+        const manifestrecord = manifest.posts.find(p=>p.id===post_id);
+        const slug = manifestrecord.slug;
 
         for(const langRow of translatedLanguages) {
             const lang = langRow.code;
@@ -513,7 +522,9 @@ const addTranslationPings = async () => {
                 console.log(`FETCH FILE ERROR ${file.status} - ${filePath}`);
             } else {
                 const html = await file.text();
-                const content = `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                const content = manifestrecord.isFragment
+                    ? html
+                    : `---\nlayout: "page.njk"\ntitle: "${slug}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
                 const newContentPath = `${githubTranslationContentPath}/${filePath}`;
 
                 const filebody = {
