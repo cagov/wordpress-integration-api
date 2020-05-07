@@ -505,10 +505,10 @@ for(const sourcefile of manifest.posts) {
 const getTranslatedPageData = html => {
     //look for JSON metadata at the top of the file.
     if(html.startsWith('{')) {
-        const jsonMetahtml = html.slice(0, html.indexOf('}')+1);
-        const jsonMeta = JSON.parse(jsonMetahtml.replace(/&quot;/g,'"'));
+        const jsonMetaSection = html.slice(0, html.indexOf('}')+1);
+        const jsonMeta = JSON.parse(jsonMetaSection.replace(/&quot;/g,'"'));
         //Adding final html (without the meta in it) to the JSON result
-        jsonMeta.html = html.replace(jsonMetahtml,'');
+        jsonMeta.html = html.replace(jsonMetaSection,'');
         //Apply the same description formatting normally used
         jsonMeta.description = excerptToDescription(jsonMeta.description);
         return jsonMeta;
