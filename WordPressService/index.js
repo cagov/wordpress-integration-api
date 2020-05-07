@@ -507,10 +507,13 @@ const getTranslatedPageData = html => {
     if(html.startsWith('{')) {
         const jsonMetahtml = html.slice(0, html.indexOf('}')+1);
         const jsonMeta = JSON.parse(jsonMetahtml.replace(/&quot;/g,'"'));
+        //Adding final html (without the meta in it) to the JSON result
         jsonMeta.html = html.replace(jsonMetahtml,'');
+        //Apply the same description formatting normally used
         jsonMeta.description = excerptToDescription(jsonMeta.description);
         return jsonMeta;
     } else {
+        //Nothing to parse...just return the input html in a JSON structure
         return {html};
     }
 }
