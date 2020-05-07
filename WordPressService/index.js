@@ -227,6 +227,8 @@ const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embe
 const taglist = (await fetchJSON(`${wordPressApiUrl}tags?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
     .map(x=>({id:x.id,name:x.name}));
 
+const excerptToDescription = excerpt => excerpt.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim();
+
 //Query WP files
 const getWordPressPosts = async () => {
     const fetchoutput = {};
@@ -243,7 +245,7 @@ const getWordPressPosts = async () => {
         name : sf.name,
         filename : sf.slug,
         pagetitle : sf.title.rendered,
-        meta : sf.excerpt.rendered.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim(),
+        meta : excerptToDescription(sf.excerpt.rendered),
         modified : sf.modified_gmt,
         content : sf.content.rendered,
         tags : defaultTags.concat(sf.tags.map(x=>taglist.find(y=>y.id===x).name)),
@@ -500,6 +502,19 @@ for(const sourcefile of manifest.posts) {
     }
 }
 
+const getTranslatedPageData = html => {
+    //look for JSON metadata at the top of the file.
+    if(html.startsWith('{')) {
+        const jsonMetahtml = html.slice(0, html.indexOf('}')+1);
+        const jsonMeta = JSON.parse(jsonMetahtml.replace(/&quot;/g,'"'));
+        jsonMeta.html = html.replace(jsonMetahtml,'');
+        jsonMeta.description = excerptToDescription(jsonMeta.description);
+        return jsonMeta;
+    } else {
+        return {html};
+    }
+}
+
 //Add translation pings
 const addTranslationPings = async () => {
     if(!req.body||req.headers['content-type']!=='application/json') return;
@@ -531,7 +546,6 @@ const addTranslationPings = async () => {
 
             for(const langRow of translatedLanguages) {
                 const newslug = `${slug}-${langRow.slugpostfix}`;
-                const title = newslug; //replace with real title
 
                 const downloadContentName = `${slug}-${langRow.code}.html`;
                 const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
@@ -541,7 +555,10 @@ const addTranslationPings = async () => {
                     //Can't find the lang file
                     console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
                 } else {
-                    const html = await file.text();
+                    const filedata = getTranslatedPageData(await file.text());
+                    const html = filedata.html;
+                    const meta = filedata.description;
+                    const title = filedata.title;
 
                     let contentString = '';
                     if(manifestrecord.isTableData)
@@ -549,7 +566,7 @@ const addTranslationPings = async () => {
                     else if(manifestrecord.isFragment)
                         contentString = html;
                     else 
-                        contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: ""\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                        contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
                     
                     content = Buffer.from(contentString).toString('base64');
 
@@ -580,7 +597,7 @@ const addTranslationPings = async () => {
                         //update
                         const json = await existingFileResponse.json();
 
-                        let updatebody = {
+                        const updatebody = {
                             committer,
                             branch,
                             content,
@@ -592,7 +609,7 @@ const addTranslationPings = async () => {
                         console.log(`UPDATE Success: ${newContentName}`);
                     } else {
                         //new
-                        let addbody = {
+                        const addbody = {
                             committer,
                             branch,
                             content,
