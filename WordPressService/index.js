@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
+const fs = require('fs');
 
 let pinghistory = []; //Used to log updates
 
@@ -11,7 +12,7 @@ const committer = {
 
 //const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
 const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
-
+const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
@@ -52,6 +53,20 @@ const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 
 module.exports = async function (context, req) {
+
+if(req.method==='GET') {
+    //Hitting the service by default will show the index page.
+    context.res = {
+            body: fs.readFileSync(`${appName}/index.html`,'utf8'),
+            headers: {
+                'Content-Type' : 'text/html'
+            }
+        };
+
+    context.done();
+    return;
+}
+
 //Logging data
 const started = getPacificTimeNow();
 let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0;
