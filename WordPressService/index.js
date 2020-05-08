@@ -523,7 +523,8 @@ const getTranslatedPageData = html => {
 const addTranslationPings = async () => {
     if(!req.body||req.headers['content-type']!=='application/json') return;
 
-    const newFileName = `ping-${new Date().getTime()}.json`;
+    const files_id = req.body.files_id;
+    const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
     const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
 
     const pingbody = {
@@ -537,7 +538,6 @@ const addTranslationPings = async () => {
         .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
     translation_pings_count++;
 
-    const files_id = req.body.files_id;
     const translated_on = new Date(req.body.translated_on*1000);
     const posts = req.body.posts.map(x=>Number(x));
 
@@ -649,11 +649,11 @@ if(delete_count>0) log.delete_count = delete_count;
 if(attachment_add_count>0) log.attachment_add_count = attachment_add_count;
 if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
 if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
-if(total_changes>0) log.total_changes = total_changes;
-if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
 if(translation_pings_count>0) log.translation_pings_count = translation_pings_count;
 if(translation_files_count>0) log.translation_files_count = translation_files_count;
 if(ignore_count>0) log.ignore_count = ignore_count;
+if(total_changes>0) log.total_changes = total_changes;
+if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
 if(req.body) log.RequestBody = req.body;
 
 pinghistory.unshift(log);
