@@ -113,6 +113,7 @@ const fetchJSON = async (URL, options, fetchoutput) =>
             options = {method:'GET'};
 
         context.res = {
+            status: 500,
             body: `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`
         };
         console.error(context.res.body);
