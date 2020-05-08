@@ -534,7 +534,8 @@ const addTranslationPings = async () => {
     };
     
     await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
-        .then(r => {console.log(`Add translation ping Success: ${newFileName}`);translation_pings_count++});
+        .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
+    translation_pings_count++;
 
     const files_id = req.body.files_id;
     const translated_on = new Date(req.body.translated_on*1000);
