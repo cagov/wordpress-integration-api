@@ -69,7 +69,7 @@ if(req.method==='GET') {
 
 //Logging data
 const started = getPacificTimeNow();
-let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0;
+let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0, translation_pings_count = 0, translation_files_count = 0;
 
 //Translation Update
 const translationUpdatePayload = [];
@@ -534,7 +534,7 @@ const addTranslationPings = async () => {
     };
     
     await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
-        .then(r => {console.log(`Add translation ping Success: ${newFileName}`);});
+        .then(r => {console.log(`Add translation ping Success: ${newFileName}`);translation_pings_count++});
 
     const files_id = req.body.files_id;
     const translated_on = new Date(req.body.translated_on*1000);
@@ -559,6 +559,8 @@ const addTranslationPings = async () => {
                     //Can't find the lang file
                     console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
                 } else {
+                    translation_files_count++;
+
                     const filedata = getTranslatedPageData(await file.text());
                     const html = filedata.html;
                     const meta = filedata.description;
@@ -631,12 +633,10 @@ const addTranslationPings = async () => {
 await addTranslationPings();
 
 //Add to log
-const total_changes = add_count+update_count+delete_count+attachment_add_count+attachment_delete_count;
+const total_changes = add_count+update_count+delete_count+attachment_add_count+attachment_delete_count+translation_pings_count+translation_files_count;
 const log = {
     branch,
-    started,
-    completed: getPacificTimeNow(),
-    ignore_count
+    runtime: `${started} to ${getPacificTimeNow()}`
 };
 
 if(req.method==="GET") log.method = req.method;
@@ -650,6 +650,9 @@ if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_co
 if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
 if(total_changes>0) log.total_changes = total_changes;
 if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
+if(translation_pings_count>0) log.translation_pings_count = translation_pings_count;
+if(translation_files_count>0) log.translation_files_count = translation_files_count;
+if(ignore_count>0) log.ignore_count = ignore_count;
 if(req.body) log.RequestBody = req.body;
 
 pinghistory.unshift(log);
