@@ -10,8 +10,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -51,6 +51,7 @@ const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
+const localtargetspath = `${appName}/localtargets/`; //path used for local targets processing
 
 module.exports = async function (context, req) {
 
@@ -505,9 +506,18 @@ for(const sourcefile of manifest.posts) {
 
 const getTranslatedPageData = html => {
     //look for JSON metadata at the top of the file.
+    html = html.trimLeft();
     if(html.startsWith('{')) {
-        const jsonMetaSection = html.slice(0, html.indexOf('}')+1);
-        const jsonMeta = JSON.parse(jsonMetaSection.replace(/&quot;/g,'"'));
+        const jsonMetaSection = html.match(/{[^}]+[^{]+}/)[0];
+        const preparedJsonText = jsonMetaSection
+            //.replace(/“|”/g,'"') //replace text quotes
+            .replace(/&quot;/g,'"') //replacing html quotes
+            //.replace(/"،/g,'",') //Replacing Arabic commas
+            //.replace(/"，/g,'",') //Replacing Chinese commas
+            //.replace(/\n/g,'') //Replacing LF
+            //.replace(/\r/g,'') //Replacing CR
+        ;
+        const jsonMeta = JSON.parse(preparedJsonText);
         //Adding final html (without the meta in it) to the JSON result
         jsonMeta.html = html.replace(jsonMetaSection,'');
         //Apply the same description formatting normally used
@@ -632,6 +642,84 @@ const addTranslationPings = async () => {
     }
 }
 await addTranslationPings();
+
+
+//Add translation pages from local file source
+const addTranslationsLocal = async () => {
+    if(req.body!=='LocalProcess=true') return;
+
+    let skipTillid = false; //For debug, Set to an ID to skip updating up to this record
+
+    const existingTranslations = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}?ref=${branch}`,defaultoptions())
+
+    for (const dirent of fs.readdirSync(localtargetspath, {withFileTypes:true})) {
+        if(dirent.isDirectory()) {
+            for (const fileent of fs.readdirSync(localtargetspath+dirent.name, {withFileTypes:true})) {
+                if(fileent.isFile()) {
+                    for (const langRow of translatedLanguages) {
+                        //Find the original english record in the manifest
+                        const manifestrecord = manifest.posts.find(x=>fileent.name.endsWith(`${x.id}-${langRow.code}.html`));
+
+                        if(skipTillid&&manifestrecord&&manifestrecord.id===skipTillid) {
+                            skipTillid = false;
+                        }
+
+                        if (manifestrecord&&!skipTillid) {
+                            const newslug = `${manifestrecord.slug}-${langRow.slugpostfix}`;
+                            console.log(`Processing: ${dirent.name+'/'+fileent.name}...`);
+                            const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
+                            const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
+
+                            const filedata = getTranslatedPageData(fs.readFileSync(localtargetspath+dirent.name+'/'+fileent.name,'utf8'));
+                            const html = filedata.html;
+                            const meta = filedata.description;
+                            const title = filedata.title;
+
+                            let contentString = '';
+                            if(manifestrecord.isTableData)
+                                contentString = JsonFromHtmlTables(html);
+                            else if(manifestrecord.isFragment)
+                                contentString = html;
+                            else 
+                                contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${manifestrecord.modified}Z"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                            
+                            content = Buffer.from(contentString).toString('base64');
+
+                            const existingFile = existingTranslations.find(x=>x.url===newURL);
+
+                            if(existingFile) {
+                                //update
+                                const updatebody = {
+                                    committer,
+                                    branch,
+                                    content,
+                                    message:gitHubMessage('Update translation',newContentName),
+                                    sha:existingFile.sha
+                                };
+            
+                                await fetchJSON(existingFile.url, getPutOptions(updatebody));
+                                console.log(`UPDATE Success: ${newContentName}`);
+                            } else {
+                                //new
+                                const addbody = {
+                                    committer,
+                                    branch,
+                                    content,
+                                    message:gitHubMessage('Add translation',newContentName)
+                                };
+                                
+                                await fetchJSON(newURL, getPutOptions(addbody));
+                                console.log(`ADD Success: ${newContentName}`);
+                            }
+                        } //if manifestrecord
+                    }
+                }
+            }
+        }
+    }
+
+}
+await addTranslationsLocal();
 
 //Add to log
 const total_changes = add_count+update_count+delete_count+attachment_add_count+attachment_delete_count+translation_pings_count+translation_files_count;
