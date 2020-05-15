@@ -570,6 +570,7 @@ const addTranslationPings = async () => {
                     //Can't find the lang file
                     console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
                 } else {
+                    console.log(`processing...${downloadFilePath}`);
                     translation_files_count++;
 
                     const filedata = getTranslatedPageData(await file.text());
