@@ -10,8 +10,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -533,7 +533,9 @@ const getTranslatedPageData = html => {
 const addTranslationPings = async () => {
     if(!req.body||req.headers['content-type']!=='application/json') return;
 
-    const files_id = req.body.files_id;
+    const pingJSON = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+
+    const files_id = pingJSON.files_id;
     const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
     const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
 
@@ -541,15 +543,15 @@ const addTranslationPings = async () => {
         committer,
         branch,
         message : gitHubMessage('Add translation ping',newFileName),
-        content : Buffer.from(JSON.stringify(req.body,null,2)).toString('base64')
+        content : Buffer.from(JSON.stringify(pingJSON,null,2)).toString('base64')
     };
     
     await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
         .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
     translation_pings_count++;
 
-    const translated_on = new Date(req.body.translated_on*1000);
-    const posts = req.body.posts.map(x=>Number(x));
+    const translated_on = new Date(pingJSON.translated_on*1000);
+    const posts = pingJSON.posts.map(x=>Number(x));
 
     if(!files_id||!translated_on||!posts) return;
 
