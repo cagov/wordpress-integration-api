@@ -659,6 +659,7 @@ const addTranslationsLocal = async () => {
         if(dirent.isDirectory()) {
             for (const fileent of fs.readdirSync(localtargetspath+dirent.name, {withFileTypes:true})) {
                 if(fileent.isFile()) {
+                    let found = false;
                     for (const langRow of translatedLanguages) {
                         //Find the original english record in the manifest
                         const manifestrecord = manifest.posts.find(x=>fileent.name.endsWith(`${x.id}-${langRow.code}.html`));
@@ -668,6 +669,7 @@ const addTranslationsLocal = async () => {
                         }
 
                         if (manifestrecord&&!skipTillid) {
+                            found = true;
                             const newslug = `${manifestrecord.slug}-${langRow.slugpostfix}`;
                             console.log(`Processing: ${dirent.name+'/'+fileent.name}...`);
                             const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
@@ -714,9 +716,14 @@ const addTranslationsLocal = async () => {
                                 await fetchJSON(newURL, getPutOptions(addbody));
                                 console.log(`ADD Success: ${newContentName}`);
                             }
-                        } //if manifestrecord
+                        } 
                     }
-                }
+
+                    if(!found) {
+                        //Can't find file in the manifest.  Error
+                        console.error(`${fileent.name} is not in the manifest!`);
+                    }
+                } //isfile
             }
         }
     }
