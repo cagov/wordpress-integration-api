@@ -586,7 +586,7 @@ const addTranslationPings = async () => {
                     else if(manifestrecord.isFragment)
                         contentString = html;
                     else 
-                        contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                        contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
                     
                     content = Buffer.from(contentString).toString('base64');
 
@@ -686,7 +686,7 @@ const addTranslationsLocal = async () => {
                             else if(manifestrecord.isFragment)
                                 contentString = html;
                             else 
-                                contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${manifestrecord.modified}Z"\ntags: ["${langRow.tag}"]\naddtositemap: false\n---\n${html}`;
+                                contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${manifestrecord.modified}Z"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
                             
                             content = Buffer.from(contentString).toString('base64');
 
