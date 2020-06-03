@@ -10,8 +10,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//onst branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -506,6 +506,10 @@ for(const sourcefile of manifest.posts) {
 
 const getTranslatedPageData = html => {
     //look for JSON metadata at the top of the file.
+
+    //remove arabic reverse (RTL override) if it is at the beginning
+    while (html.charCodeAt(0)===8294) html=html.substring(1);
+
     html = html.trimLeft();
     if(html.startsWith('{')) {
         const jsonMetaSection = html.match(/{[^}]+[^{]+}/)[0];
