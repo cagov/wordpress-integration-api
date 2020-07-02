@@ -149,14 +149,15 @@ const shaupdate = (file, wp_sha, github_sha) => {
     file.github_sha = github_sha;
 }
 
+//Return a branch head record
+const branchGetHead = async branch =>
+    fetchJSON(`${githubApiUrl}git/ref/heads/${branch}`,defaultoptions());
+
 //create a branch for this update
 const branchCreate = async filename => {
     const branch = branchprefix + filename;
-    const githubApiRefsHeads = `git/ref/heads/`;
-    const mergebranchheadresult = await fetchJSON(`${githubApiUrl}${githubApiRefsHeads}${sourcebranch}`,defaultoptions());
-    const sha = mergebranchheadresult.object.sha;
+    const sha = branchGetHead(sourcebranch).object.sha;
 
-    const githubApiRefs = `git/refs/heads/${sourcebranch}`;
     const branchCreateBody = {
         method: 'POST',
         headers: authheader(),
@@ -178,8 +179,9 @@ const branchCreate = async filename => {
 
 //merge and delete branch
 const branchMerge = async branch => {
-    const prsha = PrResult.head.sha;
-    const prurl = PrResult.url;
+    const headresult = branchGetHead(branch);
+    const prsha = headresult.object.sha;
+    const prurl = headresult.url;
     
     const prmergebody = {
         method: 'PUT',
@@ -194,7 +196,7 @@ const branchMerge = async branch => {
     };
     const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
     .then(r => {
-        console.log(`PR merge create Success`);
+        console.log(`branch merge create Success`);
         return r;
     });
 }
