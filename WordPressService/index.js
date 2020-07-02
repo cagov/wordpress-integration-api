@@ -176,9 +176,27 @@ const branchCreate = async filename => {
     return branch
 }
 
-//create a branch for this update
-const branchMerge = async branchname => {
-    return branchprefix + filename
+//merge and delete branch
+const branchMerge = async branch => {
+    const prsha = PrResult.head.sha;
+    const prurl = PrResult.url;
+    
+    const prmergebody = {
+        method: 'PUT',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            commit_title: 'PR merge commit title',
+            commit_message: 'PR merge commit message',
+            sha: prsha,
+            merge_method: 'squash'
+        })
+    };
+    const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
+    .then(r => {
+        console.log(`PR merge create Success`);
+        return r;
+    });
 }
 
 //List of WP categories
