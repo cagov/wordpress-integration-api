@@ -152,7 +152,9 @@ const shaupdate = (file, wp_sha, github_sha) => {
 //create a branch for this update
 const branchCreate = async filename => {
     const branch = branchprefix + filename;
-
+    const githubApiRefsHeads = `git/ref/heads/`;
+    const mergebranchheadresult = await fetchJSON(`${githubApiUrl}${githubApiRefsHeads}${sourcebranch}`,defaultoptions());
+    const sha = mergebranchheadresult.object.sha;
 
     const githubApiRefs = `git/refs/heads/${sourcebranch}`;
     const branchCreateBody = {
@@ -164,6 +166,12 @@ const branchCreate = async filename => {
             sha
         })
     };
+
+    const BranchCreateResult = await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
+    .then(r => {
+        console.log(`Branch create Success`);
+        return r;
+    });
 
     return branch
 }
