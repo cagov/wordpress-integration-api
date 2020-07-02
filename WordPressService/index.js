@@ -151,7 +151,21 @@ const shaupdate = (file, wp_sha, github_sha) => {
 
 //create a branch for this update
 const branchCreate = async filename => {
-    return branchprefix + filename
+    const branch = branchprefix + filename;
+
+
+    const githubApiRefs = `git/refs/heads/${sourcebranch}`;
+    const branchCreateBody = {
+        method: 'POST',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            ref: `refs/heads/${branch}`,
+            sha
+        })
+    };
+
+    return branch
 }
 
 //create a branch for this update
