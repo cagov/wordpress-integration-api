@@ -1,3 +1,8 @@
+# Location
+This service is running here...
+https://fa-cdt-covid19-d-001.azurewebsites.net/WordPressService
+
+
 # FunctionApps
 Used to develop Function As A Service Apps in support of Alpha.CA.gov.
 
