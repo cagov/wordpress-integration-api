@@ -10,8 +10,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
+//const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -22,9 +22,6 @@ const githubTranslationPingsPath = `pages/translations/pings`;
 const githubTranslationContentPath = `pages/translations/content`;
 const githubTranslationFlatPath = `pages/translated-posts`;
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
-const githubImagesTargetFolder = 'src/img'; //no slash at the end
-const wpTargetFilePrefix = '/wp';
-const githubImagesCheckFolder = `${githubImagesTargetFolder}${wpTargetFilePrefix}`; //no slash at the end
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
@@ -70,7 +67,7 @@ if(req.method==='GET') {
 
 //Logging data
 const started = getPacificTimeNow();
-let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, attachment_add_count = 0, attachment_delete_count = 0, attachments_used_count = 0, ignore_count = 0, translation_pings_count = 0, translation_files_count = 0;
+let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, translation_pings_count = 0, translation_files_count = 0;
 
 //Translation Update
 const translationUpdatePayload = [];
@@ -178,48 +175,13 @@ const shalink = file => {
 }
 
 //shadabase is built with sha data from posts/media
-await manifest.media.forEach(x=> {shalink(x)});
 await manifest.posts.forEach(x=> {shalink(x)});
-
-const shaslugmodifiedmatch = media => 
-    manifest.shadabase.find(x=>x.slug===media.slug&&x.modified===media.modified);
 
 //set the sha values in a file record
 const shaupdate = (file, wp_sha, github_sha) => {
     file.wp_sha = wp_sha;
     file.github_sha = github_sha;
 }
-
-const loadMedia = async () => {
-    //List of WP attachments
-    const sourceAttachments = await fetchJSON(`${wordPressApiUrl}media?context=view&per_page=100&orderby=slug&order=asc`)
-
-    //List of individual WP attachment sized
-    manifest.media = [];
-    for (const sourceAttachment of sourceAttachments)
-        for (const sizename of sourceAttachment.media_type==='image' ? Object.keys(sourceAttachment.media_details.sizes) : [null]) {
-            const newmedia = sizename ? sourceAttachment.media_details.sizes[sizename] : sourceAttachment;
-
-
-            if (!newmedia.file)
-                newmedia.file = `${newmedia.slug}.${newmedia.source_url.split('.').pop()}`
-            
-            manifest.media.push(
-                {
-                    slug : newmedia.slug || sourceAttachment.slug,
-                    file : newmedia.file,
-                    id : newmedia.id || sourceAttachment.id,
-                    modified : newmedia.modified || sourceAttachment.modified,
-                    wp_path : newmedia.source_url,
-                     //flatten the file path
-                    github_path : `${githubImagesTargetFolder}${wpTargetFilePrefix}/${newmedia.file}`,
-                    mime_type : newmedia.mime_type
-                }
-            );
-        }
-}
-
-await loadMedia();
 
 //List of WP categories
 const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
@@ -270,24 +232,6 @@ manifest.posts.forEach(sourcefile => {
     sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
     sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
 
-    //if there are attachments, fix the links
-    if(!sourcefile.isTableData) 
-        for (const filesize of manifest.media) {
-            const newUrl = filesize.github_path.replace(/^src/,'');
-            const setused = () => {
-                filesize.usedbyslugs = filesize.usedbyslugs || [];
-                filesize.usedbyslugs.push(sourcefile.slug);
-                attachments_used_count++;
-            }
-            if(content.match(newUrl)) {
-                setused();
-            }
-            if(content.match(filesize.wp_path)) {
-                content = content.replace(new RegExp(filesize.wp_path, 'g'),newUrl);
-                setused();
-            }
-        }
-
     if (sourcefile.isTableData)
         sourcefile.html = JsonFromHtmlTables(content);
     else if (sourcefile.isFragment)
@@ -295,122 +239,6 @@ manifest.posts.forEach(sourcefile => {
     else 
         sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${sourcefile.pagetitle}"\nmeta: "${sourcefile.meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified}Z"\n${tagtext}addtositemap: ${sourcefile.addToSitemap}\n---\n${content}`;
 });
-
-//Lift of github attachments
-const targetAttachmentFiles = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubImagesCheckFolder}?ref=${branch}`,defaultoptions())
-
-//Make sure all the attachment sizes get added
-for (const sourceMedia of manifest.media) {
-    if(sourceMedia.usedbyslugs) {
-        const targetMedia = targetAttachmentFiles.find(x=>x.path===sourceMedia.github_path);
-
-        if(targetMedia) {
-            //File is used, and it exists in the repo
-            const slugmodrow = shaslugmodifiedmatch(sourceMedia);
-
-            if(slugmodrow) {
-                //slug/modfied has not been modified
-                console.log(`Media SLUG/modified MATCH: ${sourceMedia.file}`);
-                shaupdate(sourceMedia, slugmodrow.wp_sha, slugmodrow.github_sha);
-                sha_match_count++;
-            } else {
-                //binary compare
-                const sourcefilebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
-                const sourcebuffer = await sourcefilebytes.arrayBuffer();
-                const sourceBuffer = Buffer.from(sourcebuffer);
-                const sourcesha = sha1(sourceBuffer);
-
-                if(shamatch(sourcesha,targetMedia.sha, sourceMedia.slug, sourceMedia.modified)) {
-                    console.log(`File SHA MATCH: ${sourceMedia.file}`);
-                    shaupdate(sourceMedia, sourcesha, targetMedia.sha);
-                    sha_match_count++;
-                } else {
-                    console.log(`File sha NO MATCH!!!: ${sourceMedia.file}`);
-
-                    const targetfilebytes = await fetch(targetMedia.download_url,defaultoptions());
-                    const targetbuffer = await targetfilebytes.arrayBuffer();
-                    const targetBuffer = Buffer.from(targetbuffer);
-            
-                    if(targetBuffer.equals(sourceBuffer)) {
-                        //files are the same...set sha to match
-                        console.log(`File BINARY MATCH: ${sourceMedia.file}`);
-                        shaupdate(sourceMedia, sourcesha, targetMedia.sha);
-                        binary_match_count++;
-                    } else {
-                        //files differ...time to update
-                        console.log(`File binary NO MATCH!!!...needs update: ${sourceMedia.file}`);            
-                        let body = {
-                            committer,
-                            branch,
-                            content : sourceBuffer.toString('base64'),
-                            message : gitHubMessage('Update file',targetMedia.name),
-                            sha : targetMedia.sha
-                        };
-
-                        const updateResult = await fetchJSON(targetMedia.url, getPutOptions(body))
-                            .then(r => {
-                                console.log(`UPDATE Success: ${sourceMedia.file}`);
-                                return r;
-                            });
-
-                        shaupdate(sourceMedia, sourcesha, updateResult.content.sha);
-                        
-                        update_count++;
-                    }
-                }
-            } //Binary Compare
-        } else {
-            //File is used, and it needs to be added to the repo
-            const filebytes =  await fetch(`${wordPressUrl}${sourceMedia.wp_path}`);
-            const buffer = await filebytes.arrayBuffer();
-            const sourceBuffer = Buffer.from(buffer);
-            const sourcesha = sha1(sourceBuffer);
-            const content = sourceBuffer.toString('base64');
-            const message = gitHubMessage('Add file',sourceMedia.file);
-
-            const fileAddOptions = getPutOptions({
-                message,
-                committer,
-                branch,
-                content
-            });
-        
-            const addresult = await fetchJSON(`${githubApiUrl}${githubApiContents}${sourceMedia.github_path}`, fileAddOptions)
-                .then(r => {
-                    console.log(`ATTACHMENT ADD Success: ${sourceMedia.file}`);
-                    return r;
-                });
-
-            shaupdate(sourceMedia, sourcesha, addresult.content.sha);
-            
-            attachment_add_count++;
-        }
-    } else {
-        //Not used...why is it in wordpress?
-        console.log(`- Unused file in Wordpress: ${sourceMedia.file}`);
-    }
-}
-
-//Remove extra attachment sizes
-for (const targetAttachmentSize of targetAttachmentFiles)
-    //If this file shouldn't be there, remove it
-    if(!manifest.media.find(x=>targetAttachmentSize.path===x.github_path&&x.usedbyslugs)) {
-        const message = gitHubMessage('Delete file',targetAttachmentSize.name);
-        const options = {
-            method: 'DELETE',
-            headers: authheader(),
-            body: JSON.stringify({
-                message,
-                committer,
-                branch,
-                "sha": targetAttachmentSize.sha
-            })
-        };
-
-        await fetchJSON(targetAttachmentSize.url, options)
-            .then(() => {console.log(`ATTACHMENT DELETE Success: ${targetAttachmentSize.name}`);attachment_delete_count++;})
-    }
-
 
 //Query GitHub files
 const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${branch}`,defaultoptions()))
@@ -736,7 +564,7 @@ const addTranslationsLocal = async () => {
 await addTranslationsLocal();
 
 //Add to log
-const total_changes = add_count+update_count+delete_count+attachment_add_count+attachment_delete_count+translation_pings_count+translation_files_count;
+const total_changes = add_count+update_count+delete_count+translation_pings_count+translation_files_count;
 const log = {
     branch,
     runtime: `${started} to ${getPacificTimeNow()}`
@@ -748,9 +576,6 @@ if(sha_match_count>0) log.sha_match_count = sha_match_count;
 if(add_count>0) log.add_count = add_count;
 if(update_count>0) log.update_count = update_count;
 if(delete_count>0) log.delete_count = delete_count;
-if(attachment_add_count>0) log.attachment_add_count = attachment_add_count;
-if(attachment_delete_count>0) log.attachment_delete_count = attachment_delete_count;
-if(attachments_used_count>0) log.attachments_used_count = attachments_used_count;
 if(translation_pings_count>0) log.translation_pings_count = translation_pings_count;
 if(translation_files_count>0) log.translation_files_count = translation_files_count;
 if(ignore_count>0) log.ignore_count = ignore_count;
