@@ -156,7 +156,8 @@ const branchGetHead = async branch =>
 //create a branch for this update
 const branchCreate = async filename => {
     const branch = branchprefix + filename;
-    const sha = branchGetHead(sourcebranch).object.sha;
+    const branchGetResult = await branchGetHead(sourcebranch);
+    const sha = branchGetResult.object.sha;
 
     const branchCreateBody = {
         method: 'POST',
@@ -179,9 +180,9 @@ const branchCreate = async filename => {
 
 //merge and delete branch
 const branchMerge = async branch => {
-    const headresult = branchGetHead(branch);
+    const headresult = await branchGetHead(branch);
     const prsha = headresult.object.sha;
-    const prurl = headresult.url;
+    const prurl = `${githubApiUrl}branches/${branch}`
     
     const prmergebody = {
         method: 'PUT',
@@ -196,7 +197,24 @@ const branchMerge = async branch => {
     };
     const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
     .then(r => {
-        console.log(`branch merge create Success`);
+        console.log(`branch merge Success`);
+        return r;
+    });
+
+    //delete
+    const prdeletebody = {
+        method: 'DELETE',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            commit_title: 'PR delete commit title',
+            commit_message: 'PR delete commit message',
+            sha: prsha
+        })
+    };
+    const PrDeleteResult = await fetchJSON(prurl, prdeletebody)
+    .then(r => {
+        console.log(`branch delete Success`);
         return r;
     });
 }
@@ -554,7 +572,7 @@ const update_manifest = async () => {
         
         await fetchJSON(currentmanifest.url, getPutOptions(body))
             .then(() => {console.log(`Manifest UPDATE Success:`)});
-        await branchMerge(branchMerge);
+        await branchMerge(branch);
     }
 }
 await update_manifest();
