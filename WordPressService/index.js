@@ -180,43 +180,38 @@ const branchCreate = async filename => {
 
 //merge and delete branch
 const branchMerge = async branch => {
-    const headresult = await branchGetHead(branch);
-    const prsha = headresult.object.sha;
-    const prurl = `${githubApiUrl}branches/${branch}`
+    for(const mergetarget of mergetargets) {
+        //merge
+        //https://developer.github.com/v3/repos/merging/#merge-a-branch
+        const mergeOptions = {
+            method: 'POST',
+            headers: authheader(),
+            body: JSON.stringify({
+                committer,
+                base: mergetarget,
+                head: branch,
+                merge_method: 'squash',
+                commit_message: `WordPressService merged to '${mergetarget}'`
+            })
+        };
     
-    const prmergebody = {
-        method: 'PUT',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            commit_title: 'PR merge commit title',
-            commit_message: 'PR merge commit message',
-            sha: prsha,
-            merge_method: 'squash'
-        })
-    };
-    const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
-    .then(r => {
-        console.log(`branch merge Success`);
-        return r;
-    });
+        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+            .then(() => {console.log(`MERGE Success: ${mergetarget} from ${branch}`);})
+        //End Merge
+    }
 
     //delete
+    //https://developer.github.com/v3/git/refs/#delete-a-reference
+    const prurl = `${githubApiUrl}git/refs/heads/${branch}`
     const prdeletebody = {
         method: 'DELETE',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            commit_title: 'PR delete commit title',
-            commit_message: 'PR delete commit message',
-            sha: prsha
-        })
+        headers: authheader()
     };
-    const PrDeleteResult = await fetchJSON(prurl, prdeletebody)
-    .then(r => {
-        console.log(`branch delete Success`);
-        return r;
-    });
+    await fetchJSON(prurl, prdeletebody)
+        .then(r => {
+            console.log(`branch delete Success - ${branch}`);
+            return r;
+        });
 }
 
 //List of WP categories
