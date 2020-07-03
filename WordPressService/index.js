@@ -192,7 +192,7 @@ const branchMerge = async branch => {
                 base: mergetarget,
                 head: branch,
                 merge_method: 'squash',
-                commit_message: `Merge to -> ${mergetarget}\n${branch}`
+                commit_message: `Merge to ${mergetarget}\n${branch}`
             })
         };
     
@@ -218,8 +218,6 @@ const branchDelete = async branch => {
     } else {
         console.log(`BRANCH DELETE N/A: ${branch}`);
     }
-
-    const x = branchDeleteResult;
 }
 
 //List of WP categories
