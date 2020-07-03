@@ -149,9 +149,11 @@ const shaupdate = (file, wp_sha, github_sha) => {
     file.github_sha = github_sha;
 }
 
+const branchGetHeadUrl = branch => `${githubApiUrl}git/ref/heads/${branch}`;
+
 //Return a branch head record
 const branchGetHead = async branch =>
-    fetchJSON(`${githubApiUrl}git/ref/heads/${branch}`,defaultoptions());
+    fetchJSON(branchGetHeadUrl(branch),defaultoptions());
 
 //create a branch for this update
 const branchCreate = async filename => {
@@ -169,13 +171,10 @@ const branchCreate = async filename => {
         })
     };
 
-    const BranchCreateResult = await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
-    .then(r => {
-        console.log(`Branch create Success`);
-        return r;
-    });
+    await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
+        .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
 
-    return branch
+    return branch;
 }
 
 //merge and delete branch
@@ -191,27 +190,23 @@ const branchMerge = async branch => {
                 base: mergetarget,
                 head: branch,
                 merge_method: 'squash',
-                commit_message: `WordPressService merged to '${mergetarget}'`
+                commit_message: `Merge to -> ${mergetarget}\n${branch}`
             })
         };
     
         await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-            .then(() => {console.log(`MERGE Success: ${mergetarget} from ${branch}`);})
+            .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
         //End Merge
     }
 
     //delete
     //https://developer.github.com/v3/git/refs/#delete-a-reference
-    const prurl = `${githubApiUrl}git/refs/heads/${branch}`
-    const prdeletebody = {
+    const deleteBody = {
         method: 'DELETE',
         headers: authheader()
     };
-    await fetchJSON(prurl, prdeletebody)
-        .then(r => {
-            console.log(`branch delete Success - ${branch}`);
-            return r;
-        });
+    await fetchJSON(branchGetHeadUrl(branch), deleteBody)
+        .then(() => {console.log(`BRANCH DELETE Success: ${branch}`);});
 }
 
 //List of WP categories
@@ -283,7 +278,7 @@ targetfiles.forEach(x=>{
 
 //Files to delete
 for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
-    const branch = await branchCreate(deleteTarget.slug);
+    const branch = await branchCreate(deleteTarget.filename);
     const message = gitHubMessage('Delete page',deleteTarget.name);
     const options = {
         method: 'DELETE',
