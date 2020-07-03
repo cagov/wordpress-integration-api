@@ -10,13 +10,13 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const branch = 'synctest3-wordpress-sync', sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false;
-const branch = 'master-wordpress-sync', sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true;
+//const sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+const sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
-const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${branch}`;
+const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${sourcebranch}`;
 const githubManifestPath = `pages/_data/wp/syncmanifest.json`;
 const githubTranslationPingsPath = `pages/translations/pings`;
 const githubTranslationContentPath = `pages/translations/content`;
@@ -39,7 +39,6 @@ const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
 const githubApiMerges = 'merges';
-const githubApiBranches = 'branches/';
 const tag_ignore = 'do-not-deploy';
 const tag_translate = 'translate';
 const tag_translatepriority = 'translate-priority';
@@ -48,7 +47,7 @@ const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
-const localtargetspath = `${appName}/localtargets/`; //path used for local targets processing
+const tag_nomaster = 'staging-only';
 
 module.exports = async function (context, req) {
 
@@ -67,7 +66,7 @@ if(req.method==='GET') {
 
 //Logging data
 const started = getPacificTimeNow();
-let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, translation_pings_count = 0, translation_files_count = 0;
+let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, staging_only_count = 0, translation_pings_count = 0, translation_files_count = 0;
 
 //Translation Update
 const translationUpdatePayload = [];
@@ -128,40 +127,6 @@ const getPutOptions = bodyJSON =>
         body: JSON.stringify(bodyJSON)
     });
 
-const WorkBranchIsSynced = async () => {
-    const workbranchresult = await fetchJSON(`${githubApiUrl}${githubApiBranches}${branch}`,defaultoptions());
-    const sourcebranchresult = await fetchJSON(`${githubApiUrl}${githubApiBranches}${sourcebranch}`,defaultoptions());
-
-    return workbranchresult.commit.commit.tree.sha===sourcebranchresult.commit.commit.tree.sha;
-}
-
-//Prepare the work branch
-const prepareWorkBranch = async () => {
-    //see if the work and source branch are already lined up
-
-    if(await WorkBranchIsSynced()) {
-        //workbranch and sourcebranch match...no merge needed
-        console.log(`MERGE Skipped: ${branch} matches ${sourcebranch}`)
-    } else {
-        //Merge
-        const mergeOptions = {
-            method: 'POST',
-            headers: authheader(),
-            body: JSON.stringify({
-                committer,
-                base: branch,
-                head: sourcebranch,
-                commit_message: `Synced from '${sourcebranch}'`
-            })
-        };
-
-        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-            .then(() => {console.log(`MERGE Success: ${branch} from ${sourcebranch}`);})
-        //End Merge
-    }
-};
-await prepareWorkBranch();
-
 const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
     manifest.shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
 
@@ -181,6 +146,81 @@ await manifest.posts.forEach(x=> {shalink(x)});
 const shaupdate = (file, wp_sha, github_sha) => {
     file.wp_sha = wp_sha;
     file.github_sha = github_sha;
+}
+
+const branchGetHeadUrl = branch => `${githubApiUrl}git/refs/heads/${branch}`;
+
+//Return a branch head record
+const branchGetHead = async branch =>
+    fetchJSON(branchGetHeadUrl(branch),defaultoptions());
+
+//create a branch for this update
+const branchCreate = async filename => {
+    const branch = branchprefix + filename;
+    const branchGetResult = await branchGetHead(sourcebranch);
+    const sha = branchGetResult.object.sha;
+
+    const branchCreateBody = {
+        method: 'POST',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            ref: `refs/heads/${branch}`,
+            sha
+        })
+    };
+
+    await branchDelete(branch); //in case the branch was never cleaned up
+
+    await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
+        .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
+
+    return branch;
+}
+
+//merge and delete branch
+const branchMerge = async (branch, ignoremaster) => {
+    for(const mergetarget of mergetargets) {
+        if(!ignoremaster||mergetarget!==sourcebranch) {
+            //merge
+            //https://developer.github.com/v3/repos/merging/#merge-a-branch
+            const mergeOptions = {
+                method: 'POST',
+                headers: authheader(),
+                body: JSON.stringify({
+                    committer,
+                    base: mergetarget,
+                    head: branch,
+                    commit_message: `Merge to ${mergetarget}\n${branch}`
+                })
+            };
+        
+            await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+                .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
+            //End Merge
+        } else if (ignoremaster) {
+            console.log(`MERGE Skipped: ${branch} -> ${mergetarget}`);
+            staging_only_count++;
+        }
+    }
+
+    await branchDelete(branch);
+}
+
+const branchDelete = async branch => {
+    //delete
+    //https://developer.github.com/v3/git/refs/#delete-a-reference
+    const deleteBody = {
+        method: 'DELETE',
+        headers: authheader()
+    };
+    const branchDeleteResult = await fetch(branchGetHeadUrl(branch), deleteBody);
+
+    if(branchDeleteResult.status===204) {
+        console.log(`BRANCH DELETE Success: ${branch}`);
+    } else {
+        console.log(`BRANCH DELETE N/A: ${branch}`);
+    }
 }
 
 //List of WP categories
@@ -231,6 +271,7 @@ manifest.posts.forEach(sourcefile => {
     sourcefile.translate = sourcefile.tags.includes(tag_translate);
     sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
     sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
+    sourcefile.nomaster = sourcefile.tags.includes(tag_nomaster); //staging-only
 
     if (sourcefile.isTableData)
         sourcefile.html = JsonFromHtmlTables(content);
@@ -241,7 +282,7 @@ manifest.posts.forEach(sourcefile => {
 });
 
 //Query GitHub files
-const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${branch}`,defaultoptions()))
+const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${sourcebranch}`,defaultoptions()))
     .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
 //Add custom columns to targetfile data
@@ -252,6 +293,7 @@ targetfiles.forEach(x=>{
 
 //Files to delete
 for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
+    const branch = await branchCreate(deleteTarget.filename);
     const message = gitHubMessage('Delete page',deleteTarget.name);
     const options = {
         method: 'DELETE',
@@ -266,6 +308,8 @@ for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filena
 
     await fetchJSON(deleteTarget.url, options)
         .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
+
+    await branchMerge(branch);
 }
 
 //ADD/UPDATE
@@ -280,7 +324,6 @@ for(const sourcefile of manifest.posts) {
 
         let body = {
             committer,
-            branch,
             content
         };
 
@@ -299,6 +342,7 @@ for(const sourcefile of manifest.posts) {
                     //Update file
                     body.message=gitHubMessage('Update page',targetfile.name);
                     body.sha=targetfile.sha;
+                    body.branch = await branchCreate(sourcefile.slug);
 
                     const updateResult = await fetchJSON(targetfile.url, getPutOptions(body))
                         .then(r => {
@@ -306,6 +350,7 @@ for(const sourcefile of manifest.posts) {
                             return r;
                         });
                     update_count++;
+                    await branchMerge(body.branch, sourcefile.nomaster);
                     
                     shaupdate(sourcefile, mysha, updateResult.content.sha);
                     translationUpdateAddPost(sourcefile);
@@ -321,11 +366,13 @@ for(const sourcefile of manifest.posts) {
             const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
             body.message=gitHubMessage('Add page',newFileName);
-            
+            body.branch = await branchCreate(sourcefile.slug);
+
             const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
                 .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
             add_count++;
+            await branchMerge(body.branch, sourcefile.nomaster);
             shaupdate(sourcefile, mysha, addResult.content.sha);
             translationUpdateAddPost(sourcefile);
         }
@@ -370,7 +417,7 @@ const addTranslationPings = async () => {
     const files_id = pingJSON.files_id;
     const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
     const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
-
+    const branch = await branchCreate(`ping-${files_id}`);
     const pingbody = {
         committer,
         branch,
@@ -441,7 +488,7 @@ const addTranslationPings = async () => {
                         : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
                     );
 
-                    const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
+                    const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${sourcebranch}`;
 
                     const existingFileResponse = await fetch(newURL,defaultoptions())
 
@@ -475,98 +522,14 @@ const addTranslationPings = async () => {
             }
         }
     }
+    await branchMerge(branch);
 }
 await addTranslationPings();
-
-
-//Add translation pages from local file source
-const addTranslationsLocal = async () => {
-    if(req.body!=='LocalProcess=true') return;
-
-    let skipTillid = false; //For debug, Set to an ID to skip updating up to this record
-
-    const existingTranslations = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}?ref=${branch}`,defaultoptions())
-
-    for (const dirent of fs.readdirSync(localtargetspath, {withFileTypes:true})) {
-        if(dirent.isDirectory()) {
-            for (const fileent of fs.readdirSync(localtargetspath+dirent.name, {withFileTypes:true})) {
-                if(fileent.isFile()) {
-                    let found = false;
-                    for (const langRow of translatedLanguages) {
-                        //Find the original english record in the manifest
-                        const manifestrecord = manifest.posts.find(x=>fileent.name.endsWith(`${x.id}-${langRow.code}.html`));
-
-                        if(skipTillid&&manifestrecord&&manifestrecord.id===skipTillid) {
-                            skipTillid = false;
-                        }
-
-                        if (manifestrecord&&!skipTillid) {
-                            found = true;
-                            const newslug = `${manifestrecord.slug}-${langRow.slugpostfix}`;
-                            console.log(`Processing: ${dirent.name+'/'+fileent.name}...`);
-                            const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
-                            const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
-
-                            const filedata = getTranslatedPageData(fs.readFileSync(localtargetspath+dirent.name+'/'+fileent.name,'utf8'));
-                            const html = filedata.html;
-                            const meta = filedata.description;
-                            const title = filedata.title;
-
-                            let contentString = '';
-                            if(manifestrecord.isTableData)
-                                contentString = JsonFromHtmlTables(html);
-                            else if(manifestrecord.isFragment)
-                                contentString = html;
-                            else 
-                                contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${manifestrecord.modified}Z"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
-                            
-                            content = Buffer.from(contentString).toString('base64');
-
-                            const existingFile = existingTranslations.find(x=>x.url===newURL);
-
-                            if(existingFile) {
-                                //update
-                                const updatebody = {
-                                    committer,
-                                    branch,
-                                    content,
-                                    message:gitHubMessage('Update translation',newContentName),
-                                    sha:existingFile.sha
-                                };
-            
-                                await fetchJSON(existingFile.url, getPutOptions(updatebody));
-                                console.log(`UPDATE Success: ${newContentName}`);
-                            } else {
-                                //new
-                                const addbody = {
-                                    committer,
-                                    branch,
-                                    content,
-                                    message:gitHubMessage('Add translation',newContentName)
-                                };
-                                
-                                await fetchJSON(newURL, getPutOptions(addbody));
-                                console.log(`ADD Success: ${newContentName}`);
-                            }
-                        } 
-                    }
-
-                    if(!found) {
-                        //Can't find file in the manifest.  Error
-                        console.error(`${fileent.name} is not in the manifest!`);
-                    }
-                } //isfile
-            }
-        }
-    }
-
-}
-await addTranslationsLocal();
 
 //Add to log
 const total_changes = add_count+update_count+delete_count+translation_pings_count+translation_files_count;
 const log = {
-    branch,
+    sourcebranch,
     runtime: `${started} to ${getPacificTimeNow()}`
 };
 
@@ -579,6 +542,7 @@ if(delete_count>0) log.delete_count = delete_count;
 if(translation_pings_count>0) log.translation_pings_count = translation_pings_count;
 if(translation_files_count>0) log.translation_files_count = translation_files_count;
 if(ignore_count>0) log.ignore_count = ignore_count;
+if(staging_only_count>0) log.staging_only_count = staging_only_count;
 if(total_changes>0) log.total_changes = total_changes;
 if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
 if(req.body) log.RequestBody = req.body;
@@ -598,10 +562,11 @@ const update_manifest = async () => {
     });
 
     //get existing manifest for branch compare
-    const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${branch}`,defaultoptions())
+    const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${sourcebranch}`,defaultoptions())
     const content = Buffer.from(JSON.stringify(manifest,null,2)).toString('base64');
 
     if(!currentmanifest.content||content!==currentmanifest.content.replace(/\n/g,'')) {
+        const branch = await branchCreate('manifest');
         //manifest changed
         const body = {
             committer,
@@ -613,33 +578,10 @@ const update_manifest = async () => {
         
         await fetchJSON(currentmanifest.url, getPutOptions(body))
             .then(() => {console.log(`Manifest UPDATE Success:`)});
+        await branchMerge(branch);
     }
 }
 await update_manifest();
-
-if(await WorkBranchIsSynced())
-    console.log(`MERGE Skipped - No Changes`);
-else {
-    //Something changed..merge time (async, since we are done here.)
-    mergetargets.forEach(async mergetarget =>  {
-        //Merge
-        const mergeOptions = {
-            method: 'POST',
-            headers: authheader(),
-            body: JSON.stringify({
-                committer,
-                base: mergetarget,
-                head: branch,
-                //merge_method: 'squash',
-                commit_message: `WordPressService deployed to '${mergetarget}'`
-            })
-        };
-
-        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-            .then(() => {console.log(`MERGE Success: ${mergetarget} from ${branch}`);})
-        //End Merge
-    });
-}
 
     context.res = {
         body: {pinghistory},
