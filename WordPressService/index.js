@@ -9,7 +9,7 @@ const committer = {
     'name': 'WordPressService',
     'email': 'data@alpha.ca.gov'
 };
-const branch = '';
+
 const sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
 //const sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const appName = 'WordPressService';
