@@ -10,8 +10,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-//const sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+//const sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+const sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -47,6 +47,7 @@ const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
+const tag_nomaster = 'staging-only';
 
 module.exports = async function (context, req) {
 
@@ -65,7 +66,7 @@ if(req.method==='GET') {
 
 //Logging data
 const started = getPacificTimeNow();
-let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, translation_pings_count = 0, translation_files_count = 0;
+let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, staging_only_count = 0, translation_pings_count = 0, translation_files_count = 0;
 
 //Translation Update
 const translationUpdatePayload = [];
@@ -178,25 +179,29 @@ const branchCreate = async filename => {
 }
 
 //merge and delete branch
-const branchMerge = async branch => {
+const branchMerge = async (branch, ignoremaster) => {
     for(const mergetarget of mergetargets) {
-        //merge
-        //https://developer.github.com/v3/repos/merging/#merge-a-branch
-        const mergeOptions = {
-            method: 'POST',
-            headers: authheader(),
-            body: JSON.stringify({
-                committer,
-                base: mergetarget,
-                head: branch,
-                merge_method: 'squash',
-                commit_message: `Merge to ${mergetarget}\n${branch}`
-            })
-        };
-    
-        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-            .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
-        //End Merge
+        if(!ignoremaster||mergetarget!==sourcebranch) {
+            //merge
+            //https://developer.github.com/v3/repos/merging/#merge-a-branch
+            const mergeOptions = {
+                method: 'POST',
+                headers: authheader(),
+                body: JSON.stringify({
+                    committer,
+                    base: mergetarget,
+                    head: branch,
+                    commit_message: `Merge to ${mergetarget}\n${branch}`
+                })
+            };
+        
+            await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+                .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
+            //End Merge
+        } else if (ignoremaster) {
+            console.log(`MERGE Skipped: ${branch} -> ${mergetarget}`);
+            staging_only_count++;
+        }
     }
 
     await branchDelete(branch);
@@ -266,6 +271,7 @@ manifest.posts.forEach(sourcefile => {
     sourcefile.translate = sourcefile.tags.includes(tag_translate);
     sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
     sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
+    sourcefile.nomaster = sourcefile.tags.includes(tag_nomaster); //staging-only
 
     if (sourcefile.isTableData)
         sourcefile.html = JsonFromHtmlTables(content);
@@ -344,7 +350,7 @@ for(const sourcefile of manifest.posts) {
                             return r;
                         });
                     update_count++;
-                    await branchMerge(body.branch);
+                    await branchMerge(body.branch, sourcefile.nomaster);
                     
                     shaupdate(sourcefile, mysha, updateResult.content.sha);
                     translationUpdateAddPost(sourcefile);
@@ -366,7 +372,7 @@ for(const sourcefile of manifest.posts) {
                 .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
             add_count++;
-            await branchMerge(body.branch);
+            await branchMerge(body.branch, sourcefile.nomaster);
             shaupdate(sourcefile, mysha, addResult.content.sha);
             translationUpdateAddPost(sourcefile);
         }
@@ -536,6 +542,7 @@ if(delete_count>0) log.delete_count = delete_count;
 if(translation_pings_count>0) log.translation_pings_count = translation_pings_count;
 if(translation_files_count>0) log.translation_files_count = translation_files_count;
 if(ignore_count>0) log.ignore_count = ignore_count;
+if(staging_only_count>0) log.staging_only_count = staging_only_count;
 if(total_changes>0) log.total_changes = total_changes;
 if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
 if(req.body) log.RequestBody = req.body;
