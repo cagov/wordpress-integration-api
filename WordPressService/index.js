@@ -149,7 +149,7 @@ const shaupdate = (file, wp_sha, github_sha) => {
     file.github_sha = github_sha;
 }
 
-const branchGetHeadUrl = branch => `${githubApiUrl}git/ref/heads/${branch}`;
+const branchGetHeadUrl = branch => `${githubApiUrl}git/refs/heads/${branch}`;
 
 //Return a branch head record
 const branchGetHead = async branch =>
@@ -170,6 +170,8 @@ const branchCreate = async filename => {
             sha
         })
     };
+
+    await branchDelete(branch); //in case the branch was never cleaned up
 
     await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
         .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
@@ -199,14 +201,25 @@ const branchMerge = async branch => {
         //End Merge
     }
 
+    await branchDelete(branch);
+}
+
+const branchDelete = async branch => {
     //delete
     //https://developer.github.com/v3/git/refs/#delete-a-reference
     const deleteBody = {
         method: 'DELETE',
         headers: authheader()
     };
-    await fetchJSON(branchGetHeadUrl(branch), deleteBody)
-        .then(() => {console.log(`BRANCH DELETE Success: ${branch}`);});
+    const branchDeleteResult = await fetch(branchGetHeadUrl(branch), deleteBody);
+
+    if(branchDeleteResult.status===204) {
+        console.log(`BRANCH DELETE Success: ${branch}`);
+    } else {
+        console.log(`BRANCH DELETE N/A: ${branch}`);
+    }
+
+    const x = branchDeleteResult;
 }
 
 //List of WP categories
