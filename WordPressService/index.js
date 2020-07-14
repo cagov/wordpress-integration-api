@@ -10,8 +10,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-const sourcebranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-//const sourcebranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+//const sourcebranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+const sourcebranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const mergetargets = [sourcebranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
