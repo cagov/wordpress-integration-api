@@ -2,19 +2,20 @@ const fetch = require('node-fetch');
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
+
+//begin shadabase support
 const shadabase = [];
 const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
     shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
-const shalink = file => {
-    if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified))
-    shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
-}
 //set the sha values in a file record
 const shaupdate = (file, wp_sha, github_sha) => {
     file.wp_sha = wp_sha;
     file.github_sha = github_sha;
-    shalink(file);
+    if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified)) {
+        shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
+    }
 }
+//end shadabase support
 
 let pinghistory = []; //Used to log updates
 
@@ -313,6 +314,7 @@ for(const mergetarget of mergetargets) {
         if(sourcefile.ignore) {
             console.log(`Ignored: ${sourcefile.filename}`);
             ignore_count++;
+        //} else if() { 
         } else {
             const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
             const content = Buffer.from(sourcefile.html).toString('base64');
