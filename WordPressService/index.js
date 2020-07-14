@@ -3,6 +3,12 @@ const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
 const shadabase = [];
+const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
+    shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
+const shalink = file => {
+    if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified))
+    shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
+}
 
 let pinghistory = []; //Used to log updates
 
@@ -295,7 +301,6 @@ for(const mergetarget of mergetargets) {
         await branchMerge(branch,mergetarget);
     }
 
-const shamatch = () => {}
 
     //ADD/UPDATE
     for(const sourcefile of manifest.posts) {
@@ -315,11 +320,11 @@ const shamatch = () => {}
             if(targetfile) {
                 //UPDATE
                 
-                //if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
-                //    console.log(`SHA matched: ${sourcefile.filename}`);
-                    //shaupdate(sourcefile, mysha, targetfile.sha);
-                //    sha_match_count++;
-                //} else {
+                if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
+                    console.log(`SHA matched: ${sourcefile.filename}`);
+                    shaupdate(sourcefile, mysha, targetfile.sha);
+                    sha_match_count++;
+                } else {
                     //compare
                     const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
                     
@@ -337,15 +342,15 @@ const shamatch = () => {}
                         update_count++;
                         await branchMerge(body.branch, mergetarget);
                         
-                        //shaupdate(sourcefile, mysha, updateResult.content.sha);
+                        shaupdate(sourcefile, mysha, updateResult.content.sha);
                         translationUpdateAddPost(sourcefile);
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
-                        //shaupdate(sourcefile, mysha, targetcontent.sha);
+                        shaupdate(sourcefile, mysha, targetcontent.sha);
 
                         binary_match_count++;
                     }
-                //}
+                }
             } else {
                 //ADD
                 const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
@@ -358,7 +363,7 @@ const shamatch = () => {}
 
                 add_count++;
                 await branchMerge(body.branch, mergetarget);
-                //shaupdate(sourcefile, mysha, addResult.content.sha);
+                shaupdate(sourcefile, mysha, addResult.content.sha);
                 translationUpdateAddPost(sourcefile);
             }
         }
