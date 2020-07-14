@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
@@ -169,26 +169,8 @@ const branchCreate = async (filename,mergetarget) => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, mergetarget) => {
-    //merge
-    //https://developer.github.com/v3/repos/merging/#merge-a-branch
-    const mergeOptions = {
-        method: 'POST',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            base: mergetarget,
-            head: branch,
-            commit_message: `Merge to ${mergetarget}\n${branch}`
-        })
-    };
-
-    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-        .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
-    //End Merge
-
-    const bKeepPrOpen = ignoremaster&&mergetarget===sourcebranch;
-
+const branchMerge = async (branch, mergetarget, bKeepPrOpen) => {
+    
     if(bKeepPrOpen) {
         console.log(`PR APPROVE Skipped: ${branch} -> ${mergetarget}`);
         staging_only_count++;
@@ -204,9 +186,9 @@ const branchMerge = async (branch, mergetarget) => {
             committer,
             base: mergetarget,
             head: branch,
-            title: 'test pull request',
-            body: 'my pull request body',
-            draft: bKeepPrOpen
+            title: `PR Merge to ${mergetarget}\n${branch}`,
+            body: 'my pull request body'
+            //,draft: bKeepPrOpen
         })
     };
 
@@ -216,52 +198,34 @@ const branchMerge = async (branch, mergetarget) => {
             return r;
         });
 
-    //Merge the PR
-    //https://developer.github.com/v3/pulls/#merge-a-pull-request
-    //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
-    
-    const prsha = PrResult.head.sha;
-    const prurl = PrResult.url;
-    
-    const prmergebody = {
-        method: 'PUT',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            commit_title: 'PR merge commit title',
-            commit_message: 'PR merge commit message',
-            sha: prsha,
-            merge_method: 'rebase'
-        })
-    };
+    if(!bKeepPrOpen) {
+        //Merge the PR
+        //https://developer.github.com/v3/pulls/#merge-a-pull-request
+        //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
+        
+        const prsha = PrResult.head.sha;
+        const prurl = PrResult.url;
+        
+        const prmergebody = {
+            method: 'PUT',
+            headers: authheader(),
+            body: JSON.stringify({
+                committer,
+                commit_title: 'PR merge commit title',
+                commit_message: 'PR merge commit message',
+                sha: prsha,
+                merge_method: 'rebase'
+            })
+        };
 
-    const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
-    .then(r => {
-        console.log(`PR merge create Success`);
-        return r;
-    });
+        const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
+        .then(r => {
+            console.log(`PR MERGE Success`);
+            return r;
+        });
 
-
-    //merge
-    //https://developer.github.com/v3/repos/merging/#merge-a-branch
-    const mergeOptions = {
-        method: 'POST',
-        headers: authheader(),
-        body: JSON.stringify({
-            committer,
-            base: mergetarget,
-            head: branch,
-            commit_message: `Merge to ${mergetarget}\n${branch}`
-        })
-    };
-
-    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-        .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
-    //End Merge
-
-
-
-    await branchDelete(branch);
+        await branchDelete(branch);
+    } //if(!bKeepPrOpen)
 }
 
 const branchDelete = async branch => {
@@ -598,7 +562,7 @@ const addTranslationPings = async () => {
                 }
             }
         }
-        await branchMerge(branch,mergetarget);
+        await branchMerge(branch,mergetarget,true);
     } //for
 }
 await addTranslationPings();
