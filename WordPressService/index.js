@@ -10,14 +10,14 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const sourcebranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const sourcebranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
-const mergetargets = [sourcebranch,stagingbranch];
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
-const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${sourcebranch}`;
+const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${masterbranch}`;
 const githubManifestPath = `pages/_data/wp/syncmanifest.json`;
 const githubTranslationPingsPath = `pages/translations/pings`;
 const githubTranslationContentPath = `pages/translations/content`;
@@ -158,7 +158,7 @@ const branchGetHead = async branch =>
 //create a branch for this update
 const branchCreate = async (filename,ignoremaster) => {
     const branch = branchprefix + filename;
-    const branchGetResult = await branchGetHead(ignoremaster ? stagingbranch : sourcebranch);
+    const branchGetResult = await branchGetHead(ignoremaster ? stagingbranch : masterbranch);
     const sha = branchGetResult.object.sha;
 
     const branchCreateBody = {
@@ -182,7 +182,7 @@ const branchCreate = async (filename,ignoremaster) => {
 //merge and delete branch
 const branchMerge = async (branch, ignoremaster) => {
     for(const mergetarget of mergetargets) {
-        if(!ignoremaster||mergetarget!==sourcebranch) {
+        if(!ignoremaster||mergetarget!==masterbranch) {
             //merge
             //https://developer.github.com/v3/repos/merging/#merge-a-branch
             const mergeOptions = {
@@ -283,7 +283,7 @@ manifest.posts.forEach(sourcefile => {
 });
 
 //Query GitHub files
-const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${sourcebranch}`,defaultoptions()))
+const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${masterbranch}`,defaultoptions()))
     .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
 //Add custom columns to targetfile data
@@ -489,7 +489,7 @@ const addTranslationPings = async () => {
                         : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
                     );
 
-                    const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${sourcebranch}`;
+                    const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${masterbranch}`;
 
                     const existingFileResponse = await fetch(newURL,defaultoptions())
 
@@ -530,7 +530,7 @@ await addTranslationPings();
 //Add to log
 const total_changes = add_count+update_count+delete_count+translation_pings_count+translation_files_count;
 const log = {
-    sourcebranch,
+    sourcebranch: masterbranch,
     runtime: `${started} to ${getPacificTimeNow()}`
 };
 
@@ -563,7 +563,7 @@ const update_manifest = async () => {
     });
 
     //get existing manifest for branch compare
-    const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${sourcebranch}`,defaultoptions())
+    const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${masterbranch}`,defaultoptions())
     const content = Buffer.from(JSON.stringify(manifest,null,2)).toString('base64');
 
     if(!currentmanifest.content||content!==currentmanifest.content.replace(/\n/g,'')) {
