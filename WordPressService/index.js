@@ -13,6 +13,7 @@ const shalink = file => {
 const shaupdate = (file, wp_sha, github_sha) => {
     file.wp_sha = wp_sha;
     file.github_sha = github_sha;
+    shalink(file);
 }
 
 let pinghistory = []; //Used to log updates
