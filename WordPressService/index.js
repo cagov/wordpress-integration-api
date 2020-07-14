@@ -10,8 +10,9 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const sourcebranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const sourcebranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const mergetargets = [sourcebranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
@@ -155,9 +156,9 @@ const branchGetHead = async branch =>
     fetchJSON(branchGetHeadUrl(branch),defaultoptions());
 
 //create a branch for this update
-const branchCreate = async filename => {
+const branchCreate = async (filename,ignoremaster) => {
     const branch = branchprefix + filename;
-    const branchGetResult = await branchGetHead(sourcebranch);
+    const branchGetResult = await branchGetHead(ignoremaster ? stagingbranch : sourcebranch);
     const sha = branchGetResult.object.sha;
 
     const branchCreateBody = {
@@ -342,7 +343,7 @@ for(const sourcefile of manifest.posts) {
                     //Update file
                     body.message=gitHubMessage('Update page',targetfile.name);
                     body.sha=targetfile.sha;
-                    body.branch = await branchCreate(sourcefile.slug);
+                    body.branch = await branchCreate(sourcefile.slug, sourcefile.nomaster);
 
                     const updateResult = await fetchJSON(targetfile.url, getPutOptions(body))
                         .then(r => {
@@ -366,7 +367,7 @@ for(const sourcefile of manifest.posts) {
             const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
             body.message=gitHubMessage('Add page',newFileName);
-            body.branch = await branchCreate(sourcefile.slug);
+            body.branch = await branchCreate(sourcefile.slug, sourcefile.nomaster);
 
             const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
                 .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
