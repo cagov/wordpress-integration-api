@@ -169,10 +169,27 @@ const branchCreate = async (filename,mergetarget) => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, mergetarget, bPrMode) => {
+const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody) => {
 
     if(!bPrMode) {
         //just merge and delete
+        //merge
+        //https://developer.github.com/v3/repos/merging/#merge-a-branch
+        const mergeOptions = {
+            method: 'POST',
+            headers: authheader(),
+            body: JSON.stringify({
+                committer,
+                base: mergetarget,
+                head: branch,
+                commit_message: `Merge to ${mergetarget}\n${branch}`
+            })
+        };
+
+        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+            .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
+        //End Merge
+
         await branchDelete(branch);
     } else {
         //create a pull request
@@ -185,8 +202,8 @@ const branchMerge = async (branch, mergetarget, bPrMode) => {
                 committer,
                 base: mergetarget,
                 head: branch,
-                title: `PR Merge to ${mergetarget}\n${branch}`,
-                body: 'my pull request body'
+                title: PrTitle,
+                body: PrBody
                 //,draft: bKeepPrOpen
             })
         };
@@ -197,7 +214,8 @@ const branchMerge = async (branch, mergetarget, bPrMode) => {
                 return r;
             });
 
-        if(false) {
+/*         
+        if(automerge) {
             //Auto Merge PR
             //Merge the PR
             //https://developer.github.com/v3/pulls/#merge-a-pull-request
@@ -224,7 +242,8 @@ const branchMerge = async (branch, mergetarget, bPrMode) => {
             });
     
             await branchDelete(branch);
-        }
+        } 
+*/
     }
 }
 
@@ -562,7 +581,7 @@ const addTranslationPings = async () => {
                 }
             }
         }
-        await branchMerge(branch,mergetarget,true);
+        await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Translated Content',newFileName);
     } //for
 }
 await addTranslationPings();
