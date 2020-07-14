@@ -9,10 +9,8 @@ const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) =>
     shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
 //set the sha values in a file record
 const shaupdate = (file, wp_sha, github_sha) => {
-    file.wp_sha = wp_sha;
-    file.github_sha = github_sha;
-    if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified)) {
-        shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
+    if(wp_sha&&github_sha&&!shamatch(wp_sha, github_sha, file.slug, file.modified)) {
+        shadabase.push({wp_sha, github_sha, slug:file.slug, modified:file.modified});
     }
 }
 //end shadabase support
@@ -478,7 +476,7 @@ const addTranslationPings = async () => {
 
 
                         const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
-                        const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
+                        const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}?ref=${branch}`;
         
                         const filebody = {
                             committer,
@@ -495,7 +493,7 @@ const addTranslationPings = async () => {
                             : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
                         );
 
-                        const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${masterbranch}`;
+                        const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
 
                         const existingFileResponse = await fetch(newURL,defaultoptions())
 
