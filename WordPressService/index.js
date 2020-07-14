@@ -3,6 +3,18 @@ const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
 
+//begin shadabase support
+const shadabase = [];
+const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
+    shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
+//set the sha values in a file record
+const shaupdate = (file, wp_sha, github_sha) => {
+    if(wp_sha&&github_sha&&!shamatch(wp_sha, github_sha, file.slug, file.modified)) {
+        shadabase.push({wp_sha, github_sha, slug:file.slug, modified:file.modified});
+    }
+}
+//end shadabase support
+
 let pinghistory = []; //Used to log updates
 
 const committer = {
@@ -10,14 +22,13 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const sourcebranch='synctest3', mergetargets = [sourcebranch,'synctest3_staging'], postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const sourcebranch='master', mergetargets = [sourcebranch,'staging'], postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
-const githubRawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${sourcebranch}`;
-const githubManifestPath = `pages/_data/wp/syncmanifest.json`;
 const githubTranslationPingsPath = `pages/translations/pings`;
 const githubTranslationContentPath = `pages/translations/content`;
 const githubTranslationFlatPath = `pages/translated-posts`;
@@ -127,27 +138,6 @@ const getPutOptions = bodyJSON =>
         body: JSON.stringify(bodyJSON)
     });
 
-const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
-    manifest.shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
-
-//load the manifest from github and create the shadabase from the saved post/media data
-const manifest = (await fetchJSON(`${githubRawUrl}/${githubManifestPath}`,defaultoptions())) || {};
-manifest.shadabase = [];
-
-const shalink = file => {
-    if(file.wp_sha&&file.github_sha&&!shamatch(file.wp_sha, file.github_sha, file.slug, file.modified))
-    manifest.shadabase.push({wp_sha:file.wp_sha, github_sha:file.github_sha, slug:file.slug, modified:file.modified});
-}
-
-//shadabase is built with sha data from posts/media
-await manifest.posts.forEach(x=> {shalink(x)});
-
-//set the sha values in a file record
-const shaupdate = (file, wp_sha, github_sha) => {
-    file.wp_sha = wp_sha;
-    file.github_sha = github_sha;
-}
-
 const branchGetHeadUrl = branch => `${githubApiUrl}git/refs/heads/${branch}`;
 
 //Return a branch head record
@@ -155,9 +145,9 @@ const branchGetHead = async branch =>
     fetchJSON(branchGetHeadUrl(branch),defaultoptions());
 
 //create a branch for this update
-const branchCreate = async filename => {
-    const branch = branchprefix + filename;
-    const branchGetResult = await branchGetHead(sourcebranch);
+const branchCreate = async (filename,mergetarget) => {
+    const branch = mergetarget + branchprefix + filename;
+    const branchGetResult = await branchGetHead(mergetarget);
     const sha = branchGetResult.object.sha;
 
     const branchCreateBody = {
@@ -179,30 +169,23 @@ const branchCreate = async filename => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, ignoremaster) => {
-    for(const mergetarget of mergetargets) {
-        if(!ignoremaster||mergetarget!==sourcebranch) {
-            //merge
-            //https://developer.github.com/v3/repos/merging/#merge-a-branch
-            const mergeOptions = {
-                method: 'POST',
-                headers: authheader(),
-                body: JSON.stringify({
-                    committer,
-                    base: mergetarget,
-                    head: branch,
-                    commit_message: `Merge to ${mergetarget}\n${branch}`
-                })
-            };
-        
-            await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-                .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
-            //End Merge
-        } else if (ignoremaster) {
-            console.log(`MERGE Skipped: ${branch} -> ${mergetarget}`);
-            staging_only_count++;
-        }
-    }
+const branchMerge = async (branch, mergetarget) => {
+    //merge
+    //https://developer.github.com/v3/repos/merging/#merge-a-branch
+    const mergeOptions = {
+        method: 'POST',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            base: mergetarget,
+            head: branch,
+            commit_message: `Merge to ${mergetarget}\n${branch}`
+        })
+    };
+
+    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+        .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
+    //End Merge
 
     await branchDelete(branch);
 }
@@ -257,6 +240,8 @@ const getWordPressPosts = async () => {
     }));
 }
 
+const manifest = {posts:[]};
+
 manifest.posts = await getWordPressPosts();
 
 //Add custom columns to sourcefile data
@@ -281,103 +266,118 @@ manifest.posts.forEach(sourcefile => {
         sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${sourcefile.pagetitle}"\nmeta: "${sourcefile.meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified}Z"\n${tagtext}addtositemap: ${sourcefile.addToSitemap}\n---\n${content}`;
 });
 
-//Query GitHub files
-const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${sourcebranch}`,defaultoptions()))
-    .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
+for(const mergetarget of mergetargets) {
+    //Query GitHub files
+    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${mergetarget}`,defaultoptions()))
+        .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
-//Add custom columns to targetfile data
-targetfiles.forEach(x=>{
-    //just get the filename, special characters and all
-    x.filename = x.url.split(`${githubApiUrl}${githubApiContents}${githubSyncFolder}/`)[1].split('.')[0].toLowerCase();
-});
+    //Add custom columns to targetfile data
+    targetfiles.forEach(x=>{
+        //just get the filename, special characters and all
+        x.filename = x.url.split(`${githubApiUrl}${githubApiContents}${githubSyncFolder}/`)[1].split('.')[0].toLowerCase();
+    });
 
-//Files to delete
-for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
-    const branch = await branchCreate(deleteTarget.filename);
-    const message = gitHubMessage('Delete page',deleteTarget.name);
-    const options = {
-        method: 'DELETE',
-        headers: authheader(),
-        body: JSON.stringify({
-            message,
-            committer,
-            branch,
-            sha: deleteTarget.sha
-        })
-    };
 
-    await fetchJSON(deleteTarget.url, options)
-        .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
-
-    await branchMerge(branch);
-}
-
-//ADD/UPDATE
-for(const sourcefile of manifest.posts) {
-    if(sourcefile.ignore) {
-        console.log(`Ignored: ${sourcefile.filename}`);
-        ignore_count++;
-    } else {
-        const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
-        const content = Buffer.from(sourcefile.html).toString('base64');
-        const mysha = sha1(sourcefile.html);
-
-        let body = {
-            committer,
-            content
+    //Files to delete
+    for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
+        const branch = await branchCreate(deleteTarget.filename,mergetarget);
+        const message = gitHubMessage('Delete page',deleteTarget.name);
+        const options = {
+            method: 'DELETE',
+            headers: authheader(),
+            body: JSON.stringify({
+                message,
+                committer,
+                branch,
+                sha: deleteTarget.sha
+            })
         };
 
-        if(targetfile) {
-            //UPDATE
-            
-            if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
-                console.log(`SHA matched: ${sourcefile.filename}`);
-                shaupdate(sourcefile, mysha, targetfile.sha);
-                sha_match_count++;
-            } else {
-                //compare
-                const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
+        await fetchJSON(deleteTarget.url, options)
+            .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
+
+        await branchMerge(branch,mergetarget);
+    }
+
+
+    //ADD/UPDATE
+    for(const sourcefile of manifest.posts) {
+        if(sourcefile.ignore) {
+            console.log(`Ignored: ${sourcefile.filename}`);
+            ignore_count++;
+        } else if(sourcefile.nomaster&&mergetarget===masterbranch) {
+            console.log(`PAGE Skipped: ${sourcefile.filename} -> ${mergetarget}`);
+            staging_only_count++;
+        } else {
+            const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
+            const content = Buffer.from(sourcefile.html).toString('base64');
+            const mysha = sha1(sourcefile.html);
+
+            let body = {
+                committer,
+                content
+            };
+
+            if(targetfile) {
+                //UPDATE
                 
-                if(content!==targetcontent.content.replace(/\n/g,'')) {
-                    //Update file
-                    body.message=gitHubMessage('Update page',targetfile.name);
-                    body.sha=targetfile.sha;
-                    body.branch = await branchCreate(sourcefile.slug);
-
-                    const updateResult = await fetchJSON(targetfile.url, getPutOptions(body))
-                        .then(r => {
-                            console.log(`UPDATE Success: ${sourcefile.filename}`);
-                            return r;
-                        });
-                    update_count++;
-                    await branchMerge(body.branch, sourcefile.nomaster);
-                    
-                    shaupdate(sourcefile, mysha, updateResult.content.sha);
-                    translationUpdateAddPost(sourcefile);
+                if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
+                    console.log(`SHA matched: ${sourcefile.filename}`);
+                    shaupdate(sourcefile, mysha, targetfile.sha);
+                    sha_match_count++;
                 } else {
-                    console.log(`File compare matched: ${sourcefile.filename}`);
-                    shaupdate(sourcefile, mysha, targetcontent.sha);
+                    //compare
+                    const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
+                    
+                    if(content!==targetcontent.content.replace(/\n/g,'')) {
+                        //Update file
+                        body.message=gitHubMessage('Update page',targetfile.name);
+                        body.sha=targetfile.sha;
+                        body.branch = await branchCreate(sourcefile.slug, mergetarget);
 
-                    binary_match_count++;
+                        const updateResult = await fetchJSON(targetfile.url, getPutOptions(body))
+                            .then(r => {
+                                console.log(`UPDATE Success: ${sourcefile.filename}`);
+                                return r;
+                            });
+                        update_count++;
+                        await branchMerge(body.branch, mergetarget);
+                        
+                        shaupdate(sourcefile, mysha, updateResult.content.sha);
+                        if(mergetarget===masterbranch) {
+                            translationUpdateAddPost(sourcefile);
+                        }
+                    } else {
+                        console.log(`File compare matched: ${sourcefile.filename}`);
+                        shaupdate(sourcefile, mysha, targetcontent.sha);
+
+                        binary_match_count++;
+                    }
+                }
+            } else {
+                //ADD
+                const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
+                const newFilePath = `${githubSyncFolder}/${newFileName}`;
+                body.message=gitHubMessage('Add page',newFileName);
+                body.branch = await branchCreate(sourcefile.slug, mergetarget);
+
+                const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
+                    .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
+
+                add_count++;
+                await branchMerge(body.branch, mergetarget);
+                shaupdate(sourcefile, mysha, addResult.content.sha);
+                if(mergetarget===masterbranch) {
+                    translationUpdateAddPost(sourcefile);
                 }
             }
-        } else {
-            //ADD
-            const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
-            const newFilePath = `${githubSyncFolder}/${newFileName}`;
-            body.message=gitHubMessage('Add page',newFileName);
-            body.branch = await branchCreate(sourcefile.slug);
-
-            const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
-                .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
-
-            add_count++;
-            await branchMerge(body.branch, sourcefile.nomaster);
-            shaupdate(sourcefile, mysha, addResult.content.sha);
-            translationUpdateAddPost(sourcefile);
         }
     }
 }
+
+
+
+
 
 const getTranslatedPageData = html => {
     //look for JSON metadata at the top of the file.
@@ -412,124 +412,127 @@ const getTranslatedPageData = html => {
 const addTranslationPings = async () => {
     if(!req.body||req.headers['content-type']!=='application/json') return;
 
-    const pingJSON = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    for(const mergetarget of mergetargets) {
 
-    const files_id = pingJSON.files_id;
-    const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
-    const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
-    const branch = await branchCreate(`ping-${files_id}`);
-    const pingbody = {
-        committer,
-        branch,
-        message : gitHubMessage('Add translation ping',newFileName),
-        content : Buffer.from(JSON.stringify(pingJSON,null,2)).toString('base64')
-    };
-    
-    await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
-        .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
-    translation_pings_count++;
+        const pingJSON = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
-    const translated_on = new Date(pingJSON.translated_on*1000);
-    const posts = pingJSON.posts.map(x=>Number(x));
+        const files_id = pingJSON.files_id;
+        const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
+        const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
+        const branch = await branchCreate(`ping-${files_id}`,mergetarget);
+        const pingbody = {
+            committer,
+            branch,
+            message : gitHubMessage('Add translation ping',newFileName),
+            content : Buffer.from(JSON.stringify(pingJSON,null,2)).toString('base64')
+        };
+        
+        await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
+            .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
+        translation_pings_count++;
 
-    if(!files_id||!translated_on||!posts) return;
+        const translated_on = new Date(pingJSON.translated_on*1000);
+        const posts = pingJSON.posts.map(x=>Number(x));
 
-    for(const post_id of posts) {
-        const manifestrecord = manifest.posts.find(p=>p.id===post_id);
+        if(!files_id||!translated_on||!posts) return;
 
-        if(manifestrecord) {
-            const slug = manifestrecord.slug;
+        for(const post_id of posts) {
+            const manifestrecord = manifest.posts.find(p=>p.id===post_id);
 
-            for(const langRow of translatedLanguages) {
-                const newslug = `${slug}-${langRow.slugpostfix}`;
+            if(manifestrecord) {
+                const slug = manifestrecord.slug;
 
-                const downloadContentName = `${slug}-${langRow.code}.html`;
-                const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
-                const file = await fetch(`${translationDownloadUrl}${downloadFilePath}`);
-                
-                if(file.status!==200) {
-                    //Can't find the lang file
-                    console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
-                } else {
-                    console.log(`processing...${downloadFilePath}`);
-                    translation_files_count++;
+                for(const langRow of translatedLanguages) {
+                    const newslug = `${slug}-${langRow.slugpostfix}`;
 
-                    const filedata = getTranslatedPageData(await file.text());
-                    const html = filedata.html;
-                    const meta = filedata.description;
-                    const title = filedata.title;
-
-                    let contentString = '';
-                    if(manifestrecord.isTableData)
-                        contentString = JsonFromHtmlTables(html);
-                    else if(manifestrecord.isFragment)
-                        contentString = html;
-                    else 
-                        contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
+                    const downloadContentName = `${slug}-${langRow.code}.html`;
+                    const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
+                    const file = await fetch(`${translationDownloadUrl}${downloadFilePath}`);
                     
-                    content = Buffer.from(contentString).toString('base64');
-
-
-                    const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
-                    const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
-    
-                    const filebody = {
-                        committer,
-                        branch,
-                        message : gitHubMessage('Add translation content',newContentName),
-                        content
-                    };
-    
-                    const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
-    
-                    console.log(
-                        putResult.ok
-                        ? `Add translation content Success: ${newContentName}`
-                        : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
-                    );
-
-                    const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${sourcebranch}`;
-
-                    const existingFileResponse = await fetch(newURL,defaultoptions())
-
-                    if(existingFileResponse.ok) {
-                        //update
-                        const json = await existingFileResponse.json();
-
-                        const updatebody = {
-                            committer,
-                            branch,
-                            content,
-                            message:gitHubMessage('Update translation',newContentName),
-                            sha:json.sha
-                        };
-    
-                        await fetchJSON(json.url, getPutOptions(updatebody));
-                        console.log(`UPDATE Success: ${newContentName}`);
+                    if(file.status!==200) {
+                        //Can't find the lang file
+                        console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
                     } else {
-                        //new
-                        const addbody = {
+                        console.log(`processing...${downloadFilePath}`);
+                        translation_files_count++;
+
+                        const filedata = getTranslatedPageData(await file.text());
+                        const html = filedata.html;
+                        const meta = filedata.description;
+                        const title = filedata.title;
+
+                        let contentString = '';
+                        if(manifestrecord.isTableData)
+                            contentString = JsonFromHtmlTables(html);
+                        else if(manifestrecord.isFragment)
+                            contentString = html;
+                        else 
+                            contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
+                        
+                        content = Buffer.from(contentString).toString('base64');
+
+
+                        const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
+                        const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}?ref=${branch}`;
+        
+                        const filebody = {
                             committer,
                             branch,
-                            content,
-                            message:gitHubMessage('Add translation',newContentName)
+                            message : gitHubMessage('Add translation content',newContentName),
+                            content
                         };
-                        
-                        await fetchJSON(newURL, getPutOptions(addbody));
-                        console.log(`ADD Success: ${newContentName}`);
+        
+                        const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
+        
+                        console.log(
+                            putResult.ok
+                            ? `Add translation content Success: ${newContentName}`
+                            : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
+                        );
+
+                        const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
+
+                        const existingFileResponse = await fetch(newURL,defaultoptions())
+
+                        if(existingFileResponse.ok) {
+                            //update
+                            const json = await existingFileResponse.json();
+
+                            const updatebody = {
+                                committer,
+                                branch,
+                                content,
+                                message:gitHubMessage('Update translation',newContentName),
+                                sha:json.sha
+                            };
+        
+                            await fetchJSON(json.url, getPutOptions(updatebody));
+                            console.log(`UPDATE Success: ${newContentName}`);
+                        } else {
+                            //new
+                            const addbody = {
+                                committer,
+                                branch,
+                                content,
+                                message:gitHubMessage('Add translation',newContentName)
+                            };
+                            
+                            await fetchJSON(newURL, getPutOptions(addbody));
+                            console.log(`ADD Success: ${newContentName}`);
+                        }
                     }
                 }
             }
         }
-    }
-    await branchMerge(branch);
+        await branchMerge(branch,mergetarget);
+    } //for
 }
 await addTranslationPings();
 
 //Add to log
 const total_changes = add_count+update_count+delete_count+translation_pings_count+translation_files_count;
 const log = {
-    sourcebranch,
+    sourcebranch: masterbranch,
     runtime: `${started} to ${getPacificTimeNow()}`
 };
 
@@ -548,40 +551,7 @@ if(translationUpdatePayload.length>0) log.translationUpdatePayload = translation
 if(req.body) log.RequestBody = req.body;
 
 pinghistory.unshift(log);
-//Branch done
 
-const update_manifest = async () => {
-    //don't need shadabase anymore
-    delete manifest.shadabase;
-
-    //Remove content from manifest
-    manifest.posts.forEach(x=>{
-        delete x.content;
-        delete x.html;
-        delete x.meta;
-    });
-
-    //get existing manifest for branch compare
-    const currentmanifest = await fetchJSON(`${githubApiUrl}${githubApiContents}${githubManifestPath}?ref=${sourcebranch}`,defaultoptions())
-    const content = Buffer.from(JSON.stringify(manifest,null,2)).toString('base64');
-
-    if(!currentmanifest.content||content!==currentmanifest.content.replace(/\n/g,'')) {
-        const branch = await branchCreate('manifest');
-        //manifest changed
-        const body = {
-            committer,
-            branch,
-            content,
-            message:'Update manifest',
-            sha:currentmanifest.sha
-        };
-        
-        await fetchJSON(currentmanifest.url, getPutOptions(body))
-            .then(() => {console.log(`Manifest UPDATE Success:`)});
-        await branchMerge(branch);
-    }
-}
-await update_manifest();
 
     context.res = {
         body: {pinghistory},
