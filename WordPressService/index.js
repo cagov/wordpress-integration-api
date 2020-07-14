@@ -314,7 +314,9 @@ for(const mergetarget of mergetargets) {
         if(sourcefile.ignore) {
             console.log(`Ignored: ${sourcefile.filename}`);
             ignore_count++;
-        //} else if() { 
+        } else if(sourcefile.nomaster&&mergetarget===masterbranch) {
+            console.log(`PAGE Skipped: ${sourcefile.filename} -> ${mergetarget}`);
+            staging_only_count++;
         } else {
             const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
             const content = Buffer.from(sourcefile.html).toString('base64');
