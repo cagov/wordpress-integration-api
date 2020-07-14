@@ -170,29 +170,22 @@ const branchCreate = async (filename,mergetarget) => {
 
 //merge and delete branch
 const branchMerge = async (branch, mergetarget) => {
-    //for(const mergetarget of mergetargets) {
-        //if(!ignoremaster||mergetarget!==masterbranch) {
-            //merge
-            //https://developer.github.com/v3/repos/merging/#merge-a-branch
-            const mergeOptions = {
-                method: 'POST',
-                headers: authheader(),
-                body: JSON.stringify({
-                    committer,
-                    base: mergetarget,
-                    head: branch,
-                    commit_message: `Merge to ${mergetarget}\n${branch}`
-                })
-            };
-        
-            await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-                .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
-            //End Merge
-       // } else if (ignoremaster) {
-       //     console.log(`MERGE Skipped: ${branch} -> ${mergetarget}`);
-       //     staging_only_count++;
-       // }
-    //}
+    //merge
+    //https://developer.github.com/v3/repos/merging/#merge-a-branch
+    const mergeOptions = {
+        method: 'POST',
+        headers: authheader(),
+        body: JSON.stringify({
+            committer,
+            base: mergetarget,
+            head: branch,
+            commit_message: `Merge to ${mergetarget}\n${branch}`
+        })
+    };
+
+    await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+        .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
+    //End Merge
 
     await branchDelete(branch);
 }
@@ -351,7 +344,9 @@ for(const mergetarget of mergetargets) {
                         await branchMerge(body.branch, mergetarget);
                         
                         shaupdate(sourcefile, mysha, updateResult.content.sha);
-                        translationUpdateAddPost(sourcefile);
+                        if(mergetarget===masterbranch) {
+                            translationUpdateAddPost(sourcefile);
+                        }
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
                         shaupdate(sourcefile, mysha, targetcontent.sha);
@@ -372,7 +367,9 @@ for(const mergetarget of mergetargets) {
                 add_count++;
                 await branchMerge(body.branch, mergetarget);
                 shaupdate(sourcefile, mysha, addResult.content.sha);
-                translationUpdateAddPost(sourcefile);
+                if(mergetarget===masterbranch) {
+                    translationUpdateAddPost(sourcefile);
+                }
             }
         }
     }
