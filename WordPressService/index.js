@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
@@ -517,6 +517,7 @@ const addTranslationPings = async () => {
 
             if(manifestrecord) {
                 const slug = manifestrecord.slug;
+                sourceFiles.push(slug);
 
                 for(const langRow of translatedLanguages) {
                     const newslug = `${slug}-${langRow.slugpostfix}`;
@@ -524,7 +525,7 @@ const addTranslationPings = async () => {
                     const downloadContentName = `${slug}-${langRow.code}.html`;
                     const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
                     const downloadURL = `${translationDownloadUrl}${downloadFilePath}`;
-                    sourceFiles.push(downloadURL);
+
                     const file = await fetch(downloadURL);
                     
                     if(file.status!==200) {
@@ -602,7 +603,7 @@ const addTranslationPings = async () => {
                 }
             }
         }
-        const PrBody = `Sources...\n${sourceFiles.join('\n')}`;
+        const PrBody = `- ${sourceFiles.join(`\n- `)}`;
         await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Avantpage Translated Content',PrBody,AvantPageLabels);
     } //for
 }
