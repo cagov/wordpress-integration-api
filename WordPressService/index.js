@@ -493,6 +493,7 @@ const addTranslationPings = async () => {
 
         if(!files_id||!translated_on||!posts) return;
 
+        const sourceFiles = [];
         for(const post_id of posts) {
             const manifestrecord = manifest.posts.find(p=>p.id===post_id);
 
@@ -504,7 +505,9 @@ const addTranslationPings = async () => {
 
                     const downloadContentName = `${slug}-${langRow.code}.html`;
                     const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
-                    const file = await fetch(`${translationDownloadUrl}${downloadFilePath}`);
+                    const downloadURL = `${translationDownloadUrl}${downloadFilePath}`;
+                    sourceFiles.push(downloadURL);
+                    const file = await fetch(downloadURL);
                     
                     if(file.status!==200) {
                         //Can't find the lang file
@@ -581,7 +584,8 @@ const addTranslationPings = async () => {
                 }
             }
         }
-        await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Translated Content',newFileName);
+        const PrBody = `Sources...\n${sourceFiles.join('\n')}`;
+        await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Avantpage Translated Content',PrBody);
     } //for
 }
 await addTranslationPings();
