@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
@@ -222,16 +222,15 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody, PrLabe
                 method: 'POST',
                 headers: authheader(),
                 body: JSON.stringify({
-                    committer,
                     labels: PrLabels
                 })
             };
 
-            const issue_number = PrResult.id;
+            const issue_number = PrResult.number;
     
-            const PrLabelResult = await fetchJSON(`${githubApiUrl}issues/${issue_number}/labels`, prbody)
+            const PrLabelResult = await fetchJSON(`${githubApiUrl}issues/${issue_number}/labels`, prlabelbody)
             .then(r => {
-                console.log(`PR LabelSuccess`);
+                console.log(`PR Label Success`);
                 return r;
             });
         }
