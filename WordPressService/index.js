@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
@@ -59,6 +59,7 @@ const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
+const AvantPageLabels = ['Avantpage Content'];
 
 module.exports = async function (context, req) {
 
@@ -169,7 +170,7 @@ const branchCreate = async (filename,mergetarget) => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody) => {
+const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody, PrLabels) => {
 
     if(!bPrMode) {
         //just merge and delete
@@ -182,7 +183,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody) => {
                 committer,
                 base: mergetarget,
                 head: branch,
-                commit_message: `Merge to ${mergetarget}\n${branch}`
+                commit_message: `Deploy to ${mergetarget}\n${branch}`
             })
         };
 
@@ -214,36 +215,53 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody) => {
                 return r;
             });
 
-/*         
-        if(automerge) {
-            //Auto Merge PR
-            //Merge the PR
-            //https://developer.github.com/v3/pulls/#merge-a-pull-request
-            //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
-            const prsha = PrResult.head.sha;
-            const prurl = PrResult.url;
-            
-            const prmergebody = {
-                method: 'PUT',
+        //add labels to PR
+        //https://developer.github.com/v3/issues/labels/#add-labels-to-an-issue
+        if(PrLabels) {
+            const prlabelbody = {
+                method: 'POST',
                 headers: authheader(),
                 body: JSON.stringify({
-                    committer,
-                    commit_title: 'PR merge commit title',
-                    commit_message: 'PR merge commit message',
-                    sha: prsha,
-                    merge_method: 'rebase'
+                    labels: PrLabels
                 })
             };
+
+            const issue_number = PrResult.number;
     
-            const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
+            const PrLabelResult = await fetchJSON(`${githubApiUrl}issues/${issue_number}/labels`, prlabelbody)
             .then(r => {
+                console.log(`PR Label Success`);
+                return r;
+            });
+        }
+
+
+
+        //Auto Merge PR
+        //https://developer.github.com/v3/pulls/#merge-a-pull-request
+        //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
+        const prsha = PrResult.head.sha;
+        const prurl = PrResult.url;
+        
+        const prmergebody = {
+            method: 'PUT',
+            headers: authheader(),
+            body: JSON.stringify({
+                committer,
+                //commit_title: 'PR merge commit title',
+                //commit_message: 'PR merge commit message',
+                sha: prsha,
+                merge_method: 'rebase'
+            })
+        };
+
+        const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
+        .then(r => {
                 console.log(`PR MERGE Success`);
                 return r;
             });
-    
-            await branchDelete(branch);
-        } 
-*/
+
+        await branchDelete(branch);
     }
 }
 
@@ -499,6 +517,7 @@ const addTranslationPings = async () => {
 
             if(manifestrecord) {
                 const slug = manifestrecord.slug;
+                sourceFiles.push(slug);
 
                 for(const langRow of translatedLanguages) {
                     const newslug = `${slug}-${langRow.slugpostfix}`;
@@ -506,7 +525,7 @@ const addTranslationPings = async () => {
                     const downloadContentName = `${slug}-${langRow.code}.html`;
                     const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
                     const downloadURL = `${translationDownloadUrl}${downloadFilePath}`;
-                    sourceFiles.push(downloadURL);
+
                     const file = await fetch(downloadURL);
                     
                     if(file.status!==200) {
@@ -584,8 +603,8 @@ const addTranslationPings = async () => {
                 }
             }
         }
-        const PrBody = `Sources...\n${sourceFiles.join('\n')}`;
-        await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Avantpage Translated Content',PrBody);
+        const PrBody = `- ${sourceFiles.join(`\n- `)}`;
+        await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Avantpage Translated Content',PrBody,AvantPageLabels);
     } //for
 }
 await addTranslationPings();
