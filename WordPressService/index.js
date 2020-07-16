@@ -251,7 +251,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody, PrLabe
                 //commit_title: 'PR merge commit title',
                 //commit_message: 'PR merge commit message',
                 sha: prsha,
-                merge_method: 'rebase'
+                merge_method: 'squash'
             })
         };
 
