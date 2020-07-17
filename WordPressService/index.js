@@ -59,7 +59,7 @@ const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
-const AvantPageLabels = ['Avantpage Content'];
+const TranslationPrLabels = ['Translated Content'];
 
 module.exports = async function (context, req) {
 
@@ -170,7 +170,7 @@ const branchCreate = async (filename,mergetarget) => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody, PrLabels) => {
+const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
 
     if(!bPrMode) {
         //just merge and delete
@@ -203,8 +203,8 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrBody, PrLabe
                 committer,
                 base: mergetarget,
                 head: branch,
-                title: PrTitle,
-                body: PrBody
+                title: PrTitle
+                //body: PrBody
                 //,draft: bKeepPrOpen
             })
         };
@@ -603,8 +603,14 @@ const addTranslationPings = async () => {
                 }
             }
         }
-        const PrBody = `- ${sourceFiles.join(`\n- `)}`;
-        await branchMerge(branch,mergetarget,mergetarget===masterbranch,'Avantpage Translated Content',PrBody,AvantPageLabels);
+
+        await branchMerge(
+            branch,
+            mergetarget,
+            mergetarget===masterbranch,
+            `Translation - ${sourceFiles.join(`, `)}`,
+            TranslationPrLabels
+            );
     } //for
 }
 await addTranslationPings();
