@@ -548,7 +548,7 @@ const addTranslationPings = async () => {
                         else 
                             contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
                         
-                        content = Buffer.from(contentString).toString('base64');
+                        const content = Buffer.from(contentString).toString('base64');
 
 
                         const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
