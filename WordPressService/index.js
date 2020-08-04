@@ -24,6 +24,7 @@ const committer = {
 
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
 const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const autoApproveTranslationPrs = false;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
@@ -235,33 +236,33 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
             });
         }
 
+        if(autoApproveTranslationPrs) {
+            //Auto Merge PR
+            //https://developer.github.com/v3/pulls/#merge-a-pull-request
+            //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
+            const prsha = PrResult.head.sha;
+            const prurl = PrResult.url;
+            
+            const prmergebody = {
+                method: 'PUT',
+                headers: authheader(),
+                body: JSON.stringify({
+                    committer,
+                    //commit_title: 'PR merge commit title',
+                    //commit_message: 'PR merge commit message',
+                    sha: prsha,
+                    merge_method: 'squash'
+                })
+            };
 
+            const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
+            .then(r => {
+                    console.log(`PR MERGE Success`);
+                    return r;
+                });
 
-        //Auto Merge PR
-        //https://developer.github.com/v3/pulls/#merge-a-pull-request
-        //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
-        const prsha = PrResult.head.sha;
-        const prurl = PrResult.url;
-        
-        const prmergebody = {
-            method: 'PUT',
-            headers: authheader(),
-            body: JSON.stringify({
-                committer,
-                //commit_title: 'PR merge commit title',
-                //commit_message: 'PR merge commit message',
-                sha: prsha,
-                merge_method: 'squash'
-            })
-        };
-
-        const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
-        .then(r => {
-                console.log(`PR MERGE Success`);
-                return r;
-            });
-
-        await branchDelete(branch);
+            await branchDelete(branch);
+        }
     }
 }
 
