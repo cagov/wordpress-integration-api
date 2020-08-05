@@ -24,7 +24,7 @@ const committer = {
 
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
 const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
-const autoApproveTranslationPrs = false;
+const autoApproveTranslationPrs = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubUser = 'cagov';
@@ -502,6 +502,8 @@ const addTranslationPings = async () => {
             message : gitHubMessage('Add translation ping',newFileName),
             content : Buffer.from(JSON.stringify(pingJSON,null,2)).toString('base64')
         };
+
+        //,"test": 1    ---Optional to indicate a test request
         
         await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
             .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
