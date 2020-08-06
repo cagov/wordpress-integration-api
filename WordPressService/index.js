@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const autoApproveTranslationPrs = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
@@ -548,9 +548,12 @@ const addTranslationPings = async () => {
                             contentString = JsonFromHtmlTables(html);
                         else if(manifestrecord.isFragment)
                             contentString = html;
-                        else 
-                            contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: ["${langRow.tag}"]\naddtositemap: true\n---\n${html}`;
-                        
+                        else {
+                            const tags = manifestrecord.tags.slice();
+                            tags.push(langRow.tag);
+
+                            contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: [${tags.map(x=>`"${x}"`).join(',')}]\naddtositemap: ${manifestrecord.addToSitemap}\n---\n${html}`;
+                        }
                         const content = Buffer.from(contentString).toString('base64');
 
 
