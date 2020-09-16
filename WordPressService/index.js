@@ -83,10 +83,18 @@ let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, s
 
 //Translation Update
 const translationUpdatePayload = [];
-const translationUpdateAddPost = Post => {
+const translationUpdateAddPost = (Post, download_path) => {
     if(Post.translate) {
         //Send pages marked "translate"
-        const translationRow = {id : Post.id, slug : Post.slug, modified : Post.modified};
+        const translationRow = {
+            id : Post.id, 
+            slug : Post.slug, 
+            modified : Post.modified,
+            download_path // sample ... '/master/pages/wordpress-posts/reopening-matrix-data.json'
+        };
+
+//download_path should be testable by adding to...
+//https://raw.githubusercontent.com/cagov/covid19
 
         if(Post.tags.includes(tag_translatepriority)) {
             //priority translation marked
@@ -421,7 +429,7 @@ for(const mergetarget of mergetargets) {
                         
                         shaupdate(sourcefile, mysha, updateResult.content.sha);
                         if(mergetarget===masterbranch) {
-                            translationUpdateAddPost(sourcefile);
+                            translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`);
                         }
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
@@ -444,7 +452,7 @@ for(const mergetarget of mergetargets) {
                 await branchMerge(body.branch, mergetarget);
                 shaupdate(sourcefile, mysha, addResult.content.sha);
                 if(mergetarget===masterbranch) {
-                    translationUpdateAddPost(sourcefile);
+                    translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`);
                 }
             }
         }
