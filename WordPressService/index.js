@@ -475,6 +475,7 @@ const getTranslatedPageData = html => {
         const preparedJsonText = jsonMetaSection
             //.replace(/“|”/g,'"') //replace text quotes
             .replace(/&quot;/g,'"') //replacing html quotes
+            .replace(/([^\\])\\ /g,'$1\\'); //replacing bad slash spaces
             //.replace(/"،/g,'",') //Replacing Arabic commas
             //.replace(/"，/g,'",') //Replacing Chinese commas
             //.replace(/\n/g,'') //Replacing LF
