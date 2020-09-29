@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const autoApproveTranslationPrs = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
@@ -464,33 +464,12 @@ for(const mergetarget of mergetargets) {
 
 
 const getTranslatedPageData = html => {
-    //look for JSON metadata at the top of the file.
+    //clean up any input issues
 
     //remove arabic reverse (RTL override) if it is at the beginning
     while (html.charCodeAt(0)===8294) html=html.substring(1);
 
-    html = html.trimLeft();
-    if(html.startsWith('{')) {
-        const jsonMetaSection = html.match(/{[^}]+[^{]+}/)[0];
-        const preparedJsonText = jsonMetaSection
-            //.replace(/“|”/g,'"') //replace text quotes
-            .replace(/&quot;/g,'"') //replacing html quotes
-            .replace(/([^\\])\\ /g,'$1\\'); //replacing bad slash spaces
-            //.replace(/"،/g,'",') //Replacing Arabic commas
-            //.replace(/"，/g,'",') //Replacing Chinese commas
-            //.replace(/\n/g,'') //Replacing LF
-            //.replace(/\r/g,'') //Replacing CR
-        ;
-        const jsonMeta = JSON.parse(preparedJsonText);
-        //Adding final html (without the meta in it) to the JSON result
-        jsonMeta.html = html.replace(jsonMetaSection,'');
-        //Apply the same description formatting normally used
-        jsonMeta.description = excerptToDescription(jsonMeta.description);
-        return jsonMeta;
-    } else {
-        //Nothing to parse...just return the input html in a JSON structure
-        return {html};
-    }
+    return html.trimLeft();
 }
 
 //Add translation pings
@@ -547,10 +526,7 @@ const addTranslationPings = async () => {
                         console.log(`processing...${downloadFilePath}`);
                         translation_files_count++;
 
-                        const filedata = getTranslatedPageData(await file.text());
-                        const html = filedata.html;
-                        const meta = filedata.description;
-                        const title = filedata.title;
+                        const html = getTranslatedPageData(await file.text());
 
                         let contentString = '';
                         if(manifestrecord.isTableData)
@@ -558,10 +534,9 @@ const addTranslationPings = async () => {
                         else if(manifestrecord.isFragment)
                             contentString = html;
                         else {
-                            const tags = manifestrecord.tags.slice();
-                            tags.push(langRow.tag);
+                            //replace the 'translate' tag with the correct lang tag
 
-                            contentString = `---\nlayout: "page.njk"\ntitle: "${title}"\nmeta: "${meta}"\nauthor: "State of California"\npublishdate: "${translated_on.toISOString()}"\ntags: [${tags.map(x=>`"${x}"`).join(',')}]\naddtositemap: ${manifestrecord.addToSitemap}\n---\n${html}`;
+                            contentString = html.replace(/\"translate\"/,`\"translate\"\, \"${langRow.tag}\"`);
                         }
                         const content = Buffer.from(contentString).toString('base64');
 
