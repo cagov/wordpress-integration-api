@@ -536,7 +536,7 @@ const addTranslationPings = async () => {
                         else {
                             //replace the 'translate' tag with the correct lang tag
 
-                            contentString = html.replace(/\"translate\"/,`\"translate\"\, \"${langRow.tag}\"`);
+                            contentString = html.replace(/\"translate\"/,`\"translate\"\,\"${langRow.tag}\"`);
                         }
                         const content = Buffer.from(contentString).toString('base64');
 
