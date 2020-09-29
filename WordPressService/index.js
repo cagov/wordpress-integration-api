@@ -22,8 +22,8 @@ const committer = {
     'email': 'data@alpha.ca.gov'
 };
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const autoApproveTranslationPrs = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
@@ -571,7 +571,7 @@ const addTranslationPings = async () => {
                                 committer,
                                 branch,
                                 content,
-                                message:gitHubMessage('Update translation',newContentName),
+                                message:gitHubMessage('Update translation',newContentName) + `\nSource : ${downloadURL}`,
                                 sha:json.sha
                             };
         
@@ -583,7 +583,7 @@ const addTranslationPings = async () => {
                                 committer,
                                 branch,
                                 content,
-                                message:gitHubMessage('Add translation',newContentName)
+                                message:gitHubMessage('Add translation',newContentName) + `\nSource : ${downloadURL}`
                             };
                             
                             await fetchJSON(newURL, getPutOptions(addbody));
