@@ -5,7 +5,19 @@ const gitAuthheader = () => ({
 
 const gitDefaultOptions = () => ({method: 'GET', headers:gitAuthheader() });
 
+//Common function for creating a PUT option
+const gitPutOptions = bodyJSON =>
+    ({
+        method: 'PUT',
+        headers: gitAuthheader(),
+        body: JSON.stringify(bodyJSON)
+    });
+
+const gitHubMessage = (action, file) => `${action} - ${file}`;
+
 module.exports = {
   gitAuthheader,
-  gitDefaultOptions
+  gitDefaultOptions,
+  gitHubMessage,
+  gitPutOptions
 }

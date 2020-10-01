@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 const { fetchJSON } = require('./fetchJSON');
-const { gitAuthheader, gitDefaultOptions } = require('./gitHub');
+const { gitAuthheader, gitDefaultOptions, gitHubMessage, gitPutOptions } = require('./gitHub');
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
@@ -106,14 +106,6 @@ const translationUpdateAddPost = (Post, download_path) => {
         translationUpdatePayload.push(translationRow);
     }
 }
-
-//Common function for creating a PUT option
-const getPutOptions = bodyJSON =>
-    ({
-        method: 'PUT',
-        headers: gitAuthheader(),
-        body: JSON.stringify(bodyJSON)
-    });
 
 const branchGetHeadUrl = branch => `${githubApiUrl}git/refs/heads/${branch}`;
 
@@ -386,7 +378,7 @@ for(const mergetarget of mergetargets) {
                         body.sha=targetfile.sha;
                         body.branch = await branchCreate(sourcefile.slug, mergetarget);
 
-                        const updateResult = await fetchJSON(targetfile.url, getPutOptions(body))
+                        const updateResult = await fetchJSON(targetfile.url, gitPutOptions(body))
                             .then(r => {
                                 console.log(`UPDATE Success: ${sourcefile.filename}`);
                                 return r;
@@ -412,7 +404,7 @@ for(const mergetarget of mergetargets) {
                 body.message=gitHubMessage('Add page',newFileName);
                 body.branch = await branchCreate(sourcefile.slug, mergetarget);
 
-                const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(body))
+                const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, gitPutOptions(body))
                     .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
                 add_count++;
@@ -460,7 +452,7 @@ const addTranslationPings = async () => {
 
         //,"test": 1    ---Optional to indicate a test request
         
-        await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, getPutOptions(pingbody))
+        await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, gitPutOptions(pingbody))
             .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
         translation_pings_count++;
 
@@ -518,7 +510,7 @@ const addTranslationPings = async () => {
                             content
                         };
         
-                        const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, getPutOptions(filebody));
+                        const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, gitPutOptions(filebody));
         
                         console.log(
                             putResult.ok
@@ -542,7 +534,7 @@ const addTranslationPings = async () => {
                                 sha:json.sha
                             };
         
-                            await fetchJSON(json.url, getPutOptions(updatebody));
+                            await fetchJSON(json.url, gitPutOptions(updatebody));
                             console.log(`UPDATE Success: ${newContentName}`);
                         } else {
                             //new
@@ -553,7 +545,7 @@ const addTranslationPings = async () => {
                                 message:gitHubMessage('Add translation',newContentName) + `\nSource : ${downloadURL}`
                             };
                             
-                            await fetchJSON(newURL, getPutOptions(addbody));
+                            await fetchJSON(newURL, gitPutOptions(addbody));
                             console.log(`ADD Success: ${newContentName}`);
                         }
                     }
@@ -621,8 +613,6 @@ const getPacificTimeNow = () => {
     usaTime = new Date(usaTime);
     return usaTime.toLocaleString();
 };
-
-const gitHubMessage = (action, file) => `${action} - ${file}`;
 
 const JsonFromHtmlTables = html => {    
     const data = {};
