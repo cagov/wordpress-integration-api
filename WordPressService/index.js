@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 const { fetchJSON } = require('./fetchJSON');
+const { gitAuthheader, gitDefaultOptions } = require('./gitHub');
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
@@ -110,7 +111,7 @@ const translationUpdateAddPost = (Post, download_path) => {
 const getPutOptions = bodyJSON =>
     ({
         method: 'PUT',
-        headers: authheader(),
+        headers: gitAuthheader(),
         body: JSON.stringify(bodyJSON)
     });
 
@@ -118,7 +119,7 @@ const branchGetHeadUrl = branch => `${githubApiUrl}git/refs/heads/${branch}`;
 
 //Return a branch head record
 const branchGetHead = async branch =>
-    fetchJSON(branchGetHeadUrl(branch),defaultoptions());
+    fetchJSON(branchGetHeadUrl(branch),gitDefaultOptions());
 
 //create a branch for this update
 const branchCreate = async (filename,mergetarget) => {
@@ -128,7 +129,7 @@ const branchCreate = async (filename,mergetarget) => {
 
     const branchCreateBody = {
         method: 'POST',
-        headers: authheader(),
+        headers: gitAuthheader(),
         body: JSON.stringify({
             committer,
             ref: `refs/heads/${branch}`,
@@ -153,7 +154,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
         //https://developer.github.com/v3/repos/merging/#merge-a-branch
         const mergeOptions = {
             method: 'POST',
-            headers: authheader(),
+            headers: gitAuthheader(),
             body: JSON.stringify({
                 committer,
                 base: mergetarget,
@@ -173,7 +174,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
         const githubApiPulls = 'pulls';
         const prbody = {
             method: 'POST',
-            headers: authheader(),
+            headers: gitAuthheader(),
             body: JSON.stringify({
                 committer,
                 base: mergetarget,
@@ -195,7 +196,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
         if(PrLabels) {
             const prlabelbody = {
                 method: 'POST',
-                headers: authheader(),
+                headers: gitAuthheader(),
                 body: JSON.stringify({
                     labels: PrLabels
                 })
@@ -219,7 +220,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
             
             const prmergebody = {
                 method: 'PUT',
-                headers: authheader(),
+                headers: gitAuthheader(),
                 body: JSON.stringify({
                     committer,
                     //commit_title: 'PR merge commit title',
@@ -245,7 +246,7 @@ const branchDelete = async branch => {
     //https://developer.github.com/v3/git/refs/#delete-a-reference
     const deleteBody = {
         method: 'DELETE',
-        headers: authheader()
+        headers: gitAuthheader()
     };
     const branchDeleteResult = await fetch(branchGetHeadUrl(branch), deleteBody);
 
@@ -318,7 +319,7 @@ manifest.posts.forEach(sourcefile => {
 
 for(const mergetarget of mergetargets) {
     //Query GitHub files
-    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${mergetarget}`,defaultoptions()))
+    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${mergetarget}`,gitDefaultOptions()))
         .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
     //Add custom columns to targetfile data
@@ -334,7 +335,7 @@ for(const mergetarget of mergetargets) {
         const message = gitHubMessage('Delete page',deleteTarget.name);
         const options = {
             method: 'DELETE',
-            headers: authheader(),
+            headers: gitAuthheader(),
             body: JSON.stringify({
                 message,
                 committer,
@@ -377,7 +378,7 @@ for(const mergetarget of mergetargets) {
                     sha_match_count++;
                 } else {
                     //compare
-                    const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,defaultoptions())
+                    const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,gitDefaultOptions())
                     
                     if(content!==targetcontent.content.replace(/\n/g,'')) {
                         //Update file
@@ -527,7 +528,7 @@ const addTranslationPings = async () => {
 
                         const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
 
-                        const existingFileResponse = await fetch(newURL,defaultoptions())
+                        const existingFileResponse = await fetch(newURL,gitDefaultOptions())
 
                         if(existingFileResponse.ok) {
                             //update
@@ -620,13 +621,6 @@ const getPacificTimeNow = () => {
     usaTime = new Date(usaTime);
     return usaTime.toLocaleString();
 };
-
-const authheader = () => ({
-    'Authorization' : `Bearer ${process.env["GITHUB_TOKEN"]}`,
-    'Content-Type': 'application/json'
-});
-
-const defaultoptions = () => ({method: 'GET', headers:authheader() });
 
 const gitHubMessage = (action, file) => `${action} - ${file}`;
 
