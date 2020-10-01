@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { fetchJSON } = require('./fetchJSON');
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
@@ -104,41 +105,6 @@ const translationUpdateAddPost = (Post, download_path) => {
         translationUpdatePayload.push(translationRow);
     }
 }
-
-//Common Fetch functions
-const fetchJSON = async (URL, options, fetchoutput) => 
-    await fetch(URL,options)
-    .then(response => {
-        if (fetchoutput)
-            fetchoutput.response = response;
-        return response;
-    })
-    .then(response =>
-        response.ok
-        ? (
-            response.status===200||response.status===201
-            ? response.json()
-            : null)
-        : (
-            response.status===404
-            ? []
-            : Promise.reject(response))
-       )
-    .catch(async response => {
-        const json = (await (response.json ? response.json() : null)) || response;
-
-        if(!options)
-            options = {method:'GET'};
-
-        context.res = {
-            status: 500,
-            body: `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`
-        };
-        console.error(context.res.body);
-        context.done();
-
-        return Promise.reject(context.res.body);
-    });
 
 //Common function for creating a PUT option
 const getPutOptions = bodyJSON =>
