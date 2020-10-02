@@ -374,26 +374,23 @@ const addTranslationPings = async () => {
                             //update
                             const json = await existingFileResponse.json();
 
-                            const updatebody = {
-                                committer,
-                                branch,
+                            await gitHubFileUpdate(
                                 content,
-                                message:gitHubMessage('Update translation',newContentName) + `\nSource : ${downloadURL}`,
-                                sha:json.sha
-                            };
-        
-                            await fetchJSON(json.url, gitPutOptions(updatebody));
+                                json.url,
+                                json.sha,
+                                gitHubMessage('Update translation',newContentName) + `\nSource : ${downloadURL}`,
+                                branch
+                            );
+
                             console.log(`UPDATE Success: ${newContentName}`);
                         } else {
                             //new
-                            const addbody = {
-                                committer,
-                                branch,
+                            await gitHubFileAdd(
                                 content,
-                                message:gitHubMessage('Add translation',newContentName) + `\nSource : ${downloadURL}`
-                            };
-                            
-                            await fetchJSON(newURL, gitPutOptions(addbody));
+                                `${githubTranslationFlatPath}/${newContentName}`,
+                                gitHubMessage('Add translation',newContentName) + `\nSource : ${downloadURL}`,
+                                branch
+                            );
                             console.log(`ADD Success: ${newContentName}`);
                         }
                     }
