@@ -8,7 +8,9 @@ const {
     branchCreate,
     branchMerge,
     githubApiUrl,
-    gitHubFileDelete
+    gitHubFileDelete,
+    gitHubFileUpdate,
+    gitHubFileAdd
 } = require('./gitHub');
 
 const { JSDOM } = require("jsdom");
@@ -209,11 +211,6 @@ for(const mergetarget of mergetargets) {
             const content = Buffer.from(sourcefile.html).toString('base64');
             const mysha = sha1(sourcefile.html);
 
-            let body = {
-                committer,
-                content
-            };
-
             if(targetfile) {
                 //UPDATE
                 
@@ -227,17 +224,15 @@ for(const mergetarget of mergetargets) {
                     
                     if(content!==targetcontent.content.replace(/\n/g,'')) {
                         //Update file
-                        body.message=gitHubMessage('Update page',targetfile.name);
-                        body.sha=targetfile.sha;
-                        body.branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
-
-                        const updateResult = await fetchJSON(targetfile.url, gitPutOptions(body))
+                        const message = gitHubMessage('Update page',targetfile.name);
+                        const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
+                        const updateResult = await gitHubFileUpdate(content,targetfile.url,targetfile.sha,message,branch)
                             .then(r => {
                                 console.log(`UPDATE Success: ${sourcefile.filename}`);
                                 return r;
                             });
                         update_count++;
-                        await branchMerge(body.branch, mergetarget);
+                        await branchMerge(branch, mergetarget);
                         
                         shaupdate(sourcefile, mysha, updateResult.content.sha);
                         if(mergetarget===masterbranch) {
@@ -254,14 +249,14 @@ for(const mergetarget of mergetargets) {
                 //ADD
                 const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
                 const newFilePath = `${githubSyncFolder}/${newFileName}`;
-                body.message=gitHubMessage('Add page',newFileName);
-                body.branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
+                const message = gitHubMessage('Add page',newFileName);
+                const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
 
-                const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, gitPutOptions(body))
+                const addResult = await gitHubFileAdd(content,newFilePath,message,branch)
                     .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
                 add_count++;
-                await branchMerge(body.branch, mergetarget);
+                await branchMerge(branch, mergetarget);
                 shaupdate(sourcefile, mysha, addResult.content.sha);
                 if(mergetarget===masterbranch) {
                     translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`);

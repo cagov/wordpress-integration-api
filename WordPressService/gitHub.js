@@ -164,8 +164,8 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
   }
 }
 
-const gitHubFileDelete = async (url, sha, message, branch) => {
-    const options = {
+const gitHubFileDelete = async (url, sha, message, branch) => 
+    await fetchJSON(url, {
         method: 'DELETE',
         headers: gitAuthheader(),
         body: JSON.stringify({
@@ -173,11 +173,24 @@ const gitHubFileDelete = async (url, sha, message, branch) => {
             committer,
             branch,
             sha
-        })
-    };
+        })});
 
-    await fetchJSON(url, options);
-}
+const gitHubFileUpdate = async (content, url, sha, message, branch) =>
+    await fetchJSON(url, gitPutOptions({
+        committer,
+        content,
+        message,
+        sha,
+        branch
+    }));
+
+const gitHubFileAdd = async (content, newFilePath, message, branch) =>
+    await fetchJSON(`${githubApiUrl}contents/${newFilePath}`, gitPutOptions({
+        committer,
+        content,
+        message,
+        branch
+    }));
 
 module.exports = {
   gitDefaultOptions,
@@ -187,5 +200,7 @@ module.exports = {
   branchCreate,
   branchMerge,
   githubApiUrl,
-  gitHubFileDelete
+  gitHubFileDelete,
+  gitHubFileUpdate,
+  gitHubFileAdd
 }
