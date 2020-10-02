@@ -182,7 +182,7 @@ for(const mergetarget of mergetargets) {
     //Add custom columns to targetfile data
     targetfiles.forEach(x=>{
         //just get the filename, special characters and all
-        x.filename = x.url.split(`${githubApiUrl}${githubApiContents}${githubSyncFolder}/`)[1].split('.')[0].toLowerCase();
+        x.filename = x.url.split(`${githubSyncFolder}/`)[1].split('.')[0].toLowerCase();
     });
 
     //Files to delete
