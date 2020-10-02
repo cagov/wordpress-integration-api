@@ -164,13 +164,28 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
   }
 }
 
+const gitHubFileDelete = async (url, sha, message, branch) => {
+    const options = {
+        method: 'DELETE',
+        headers: gitAuthheader(),
+        body: JSON.stringify({
+            message,
+            committer,
+            branch,
+            sha
+        })
+    };
+
+    await fetchJSON(url, options);
+}
+
 module.exports = {
-  gitAuthheader,
   gitDefaultOptions,
   gitHubMessage,
   gitPutOptions,
   committer,
   branchCreate,
   branchMerge,
-  githubApiUrl
+  githubApiUrl,
+  gitHubFileDelete
 }

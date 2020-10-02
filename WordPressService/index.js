@@ -1,15 +1,16 @@
 const fetch = require('node-fetch');
 const { fetchJSON } = require('./fetchJSON');
 const {
-    gitAuthheader,
     gitDefaultOptions,
     gitHubMessage,
     gitPutOptions,
     committer,
     branchCreate,
     branchMerge,
-    githubApiUrl
+    githubApiUrl,
+    gitHubFileDelete
 } = require('./gitHub');
+
 const { JSDOM } = require("jsdom");
 const sha1 = require('sha1');
 const fs = require('fs');
@@ -184,28 +185,16 @@ for(const mergetarget of mergetargets) {
         x.filename = x.url.split(`${githubApiUrl}${githubApiContents}${githubSyncFolder}/`)[1].split('.')[0].toLowerCase();
     });
 
-
     //Files to delete
     for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
         const branch = await branchCreate_WithName(deleteTarget.filename,mergetarget);
         const message = gitHubMessage('Delete page',deleteTarget.name);
-        const options = {
-            method: 'DELETE',
-            headers: gitAuthheader(),
-            body: JSON.stringify({
-                message,
-                committer,
-                branch,
-                sha: deleteTarget.sha
-            })
-        };
 
-        await fetchJSON(deleteTarget.url, options)
+        await gitHubFileDelete(deleteTarget.url, deleteTarget.sha, message, branch)
             .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
 
         await branchMerge(branch,mergetarget);
     }
-
 
     //ADD/UPDATE
     for(const sourcefile of manifest.posts) {
