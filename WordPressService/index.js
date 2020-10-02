@@ -11,7 +11,7 @@ const {
     gitHubFileGetBlob
 } = require('./gitHub');
 
-const { JSDOM } = require("jsdom");
+const { JSDOM } = require('jsdom');
 const sha1 = require('sha1');
 const fs = require('fs');
 
@@ -29,8 +29,8 @@ const shaupdate = (file, wp_sha, github_sha) => {
 
 let pinghistory = []; //Used to log updates
 
-const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
-//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, branchprefix = 'synctest3_deploy_';
+const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, branchprefix = 'wpservice_deploy_';
 const autoApproveTranslationPrs = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
