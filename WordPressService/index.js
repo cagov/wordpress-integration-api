@@ -2,8 +2,8 @@ const fetch = require('node-fetch');
 const { fetchJSON } = require('./fetchJSON');
 const {
     gitHubMessage,
-    branchCreate,
-    branchMerge,
+    gitHubBranchCreate,
+    gitHubBranchMerge,
     gitHubFileDelete,
     gitHubFileUpdate,
     gitHubFileAdd,
@@ -109,7 +109,7 @@ const translationUpdateAddPost = (Post, download_path) => {
 
 const branchCreate_WithName = async (filename,mergetarget) => {
     const branch = mergetarget + branchprefix + filename;
-    await branchCreate(branch,mergetarget);
+    await gitHubBranchCreate(branch,mergetarget);
     return branch;
 }
 
@@ -192,7 +192,7 @@ for(const mergetarget of mergetargets) {
         await gitHubFileDelete(deleteTarget.url, deleteTarget.sha, message, branch)
             .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
 
-        await branchMerge(branch,mergetarget);
+        await gitHubBranchMerge(branch,mergetarget);
     }
 
     //ADD/UPDATE
@@ -229,7 +229,7 @@ for(const mergetarget of mergetargets) {
                                 return r;
                             });
                         update_count++;
-                        await branchMerge(branch, mergetarget);
+                        await gitHubBranchMerge(branch, mergetarget);
                         
                         shaupdate(sourcefile, mysha, updateResult.content.sha);
                         if(mergetarget===masterbranch) {
@@ -253,7 +253,7 @@ for(const mergetarget of mergetargets) {
                     .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
 
                 add_count++;
-                await branchMerge(branch, mergetarget);
+                await gitHubBranchMerge(branch, mergetarget);
                 shaupdate(sourcefile, mysha, addResult.content.sha);
                 if(mergetarget===masterbranch) {
                     translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`);
@@ -397,7 +397,7 @@ const addTranslationPings = async () => {
             }
         }
 
-        await branchMerge(
+        await gitHubBranchMerge(
             branch,
             mergetarget,
             mergetarget===masterbranch,

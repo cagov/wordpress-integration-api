@@ -33,7 +33,7 @@ const branchGetHead = async branch =>
     fetchJSON(branchGetHeadUrl(branch),gitDefaultOptions());
 
 //create a branch for this update
-const branchCreate = async (branch,mergetarget) => {
+const gitHubBranchCreate = async (branch,mergetarget) => {
   const branchGetResult = await branchGetHead(mergetarget);
   const sha = branchGetResult.object.sha;
 
@@ -47,13 +47,13 @@ const branchCreate = async (branch,mergetarget) => {
       })
   };
 
-  await branchDelete(branch); //in case the branch was never cleaned up
+  await gitHubBranchDelete(branch); //in case the branch was never cleaned up
 
   await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
       .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
 }
 
-const branchDelete = async branch => {
+const gitHubBranchDelete = async branch => {
   //delete
   //https://developer.github.com/v3/git/refs/#delete-a-reference
   const deleteBody = {
@@ -70,7 +70,7 @@ const branchDelete = async branch => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, ApprovePr) => {
+const gitHubBranchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, ApprovePr) => {
 
   if(!bPrMode) {
       //just merge and delete
@@ -91,7 +91,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
           .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
       //End Merge
 
-      await branchDelete(branch);
+      await gitHubBranchDelete(branch);
   } else {
       //create a pull request
       //https://developer.github.com/v3/pulls/#create-a-pull-request
@@ -159,7 +159,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
                   return r;
               });
 
-          await branchDelete(branch);
+          await gitHubBranchDelete(branch);
       }
   }
 }
@@ -200,8 +200,8 @@ const gitHubFileGetBlob = async sha =>
 
 module.exports = {
   gitHubMessage,
-  branchCreate,
-  branchMerge,
+  gitHubBranchCreate,
+  gitHubBranchMerge,
   gitHubFileDelete,
   gitHubFileUpdate,
   gitHubFileAdd,
