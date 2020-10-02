@@ -192,17 +192,19 @@ const gitHubFileAdd = async (content, newFilePath, message, branch) =>
         branch
     }));
 
+const gitHubFileGet = async (path, branch) =>
+    await fetchJSON(`${githubApiUrl}contents/${path}?ref=${branch}`,gitDefaultOptions());
+
 const gitHubFileGetBlob = async sha => 
     await fetchJSON(`${githubApiUrl}git/blobs/${sha}`,gitDefaultOptions());
 
 module.exports = {
-  gitDefaultOptions,
   gitHubMessage,
   branchCreate,
   branchMerge,
-  githubApiUrl,
   gitHubFileDelete,
   gitHubFileUpdate,
   gitHubFileAdd,
+  gitHubFileGet,
   gitHubFileGetBlob
 }

@@ -1,14 +1,13 @@
 const fetch = require('node-fetch');
 const { fetchJSON } = require('./fetchJSON');
 const {
-    gitDefaultOptions,
     gitHubMessage,
     branchCreate,
     branchMerge,
-    githubApiUrl,
     gitHubFileDelete,
     gitHubFileUpdate,
     gitHubFileAdd,
+    gitHubFileGet,
     gitHubFileGetBlob
 } = require('./gitHub');
 
@@ -54,7 +53,6 @@ const translatedLanguages = [
 ];
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
-const githubApiContents = 'contents/';
 const tag_ignore = 'do-not-deploy';
 const tag_translate = 'translate';
 const tag_translatepriority = 'translate-priority';
@@ -177,7 +175,7 @@ manifest.posts.forEach(sourcefile => {
 
 for(const mergetarget of mergetargets) {
     //Query GitHub files
-    const targetfiles = (await fetchJSON(`${githubApiUrl}${githubApiContents}${githubSyncFolder}?ref=${mergetarget}`,gitDefaultOptions()))
+    const targetfiles = (await gitHubFileGet(githubSyncFolder,mergetarget))
         .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
 
     //Add custom columns to targetfile data
@@ -344,11 +342,11 @@ const addTranslationPings = async () => {
                         const content = Buffer.from(contentString).toString('base64');
 
                         const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
-                        const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}?ref=${branch}`;
+                        const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
 
-                        const existingContent = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`,gitDefaultOptions())
-                        if(existingContent.ok) {
-                            const json = await existingContent.json();
+                        const existingContent = await gitHubFileGet(newContentPath,branch);
+                        if(existingContent.sha) {
+                            const json = existingContent;
                             await gitHubFileUpdate(
                                 content,
                                 json.url,
@@ -367,13 +365,13 @@ const addTranslationPings = async () => {
                             .then(() => {console.log(`Add translation content Success: ${newContentName}`);});
                         }
 
-                        const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
+                        const newURL = `${githubTranslationFlatPath}/${newContentName}`;
 
-                        const existingFileResponse = await fetch(newURL,gitDefaultOptions())
+                        const existingFileResponse = await gitHubFileGet(newURL,branch);
 
-                        if(existingFileResponse.ok) {
+                        if(existingFileResponse.sha) {
                             //update
-                            const json = await existingFileResponse.json();
+                            const json = existingFileResponse;
 
                             await gitHubFileUpdate(
                                 content,
