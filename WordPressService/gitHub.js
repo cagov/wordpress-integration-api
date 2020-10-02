@@ -4,6 +4,7 @@ const { fetchJSON } = require('./fetchJSON');
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
+const githubApiMerges = 'merges';
 const committer = {
   'name': 'WordPressService',
   'email': 'data@alpha.ca.gov'

@@ -54,7 +54,6 @@ const translatedLanguages = [
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const githubApiContents = 'contents/';
-const githubApiMerges = 'merges';
 const tag_ignore = 'do-not-deploy';
 const tag_translate = 'translate';
 const tag_translatepriority = 'translate-priority';
