@@ -8,7 +8,8 @@ const {
     githubApiUrl,
     gitHubFileDelete,
     gitHubFileUpdate,
-    gitHubFileAdd
+    gitHubFileAdd,
+    gitHubFileGetBlob
 } = require('./gitHub');
 
 const { JSDOM } = require("jsdom");
@@ -218,7 +219,7 @@ for(const mergetarget of mergetargets) {
                     sha_match_count++;
                 } else {
                     //compare
-                    const targetcontent = await fetchJSON(`${githubApiUrl}git/blobs/${targetfile.sha}`,gitDefaultOptions())
+                    const targetcontent = await gitHubFileGetBlob(targetfile.sha);
                     
                     if(content!==targetcontent.content.replace(/\n/g,'')) {
                         //Update file

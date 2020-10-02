@@ -192,6 +192,9 @@ const gitHubFileAdd = async (content, newFilePath, message, branch) =>
         branch
     }));
 
+const gitHubFileGetBlob = async sha => 
+    await fetchJSON(`${githubApiUrl}git/blobs/${sha}`,gitDefaultOptions());
+
 module.exports = {
   gitDefaultOptions,
   gitHubMessage,
@@ -200,5 +203,6 @@ module.exports = {
   githubApiUrl,
   gitHubFileDelete,
   gitHubFileUpdate,
-  gitHubFileAdd
+  gitHubFileAdd,
+  gitHubFileGetBlob
 }
