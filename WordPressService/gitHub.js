@@ -4,7 +4,6 @@ const { fetchJSON } = require('./fetchJSON');
 const githubUser = 'cagov';
 const githubRepo = 'covid19';
 const githubApiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/`;
-const githubApiMerges = 'merges';
 const committer = {
   'name': 'WordPressService',
   'email': 'data@alpha.ca.gov'
@@ -88,7 +87,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
           })
       };
 
-      await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
+      await fetchJSON(`${githubApiUrl}merges`, mergeOptions)
           .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
       //End Merge
 
@@ -96,7 +95,6 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
   } else {
       //create a pull request
       //https://developer.github.com/v3/pulls/#create-a-pull-request
-      const githubApiPulls = 'pulls';
       const prbody = {
           method: 'POST',
           headers: gitAuthheader(),
@@ -110,7 +108,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, Appr
           })
       };
 
-      const PrResult = await fetchJSON(`${githubApiUrl}${githubApiPulls}`, prbody)
+      const PrResult = await fetchJSON(`${githubApiUrl}pulls`, prbody)
           .then(r => {
               console.log(`PR create Success`);
               return r;
