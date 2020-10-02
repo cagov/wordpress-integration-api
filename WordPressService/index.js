@@ -8,6 +8,7 @@ const {
     committer,
     branchCreate,
     branchDelete,
+    branchMerge,
     githubApiUrl
 } = require('./gitHub');
 const { JSDOM } = require("jsdom");
@@ -112,102 +113,6 @@ const branchCreate_WithName = async (filename,mergetarget) => {
     const branch = mergetarget + branchprefix + filename;
     await branchCreate(branch,mergetarget);
     return branch;
-}
-
-//merge and delete branch
-const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, ApprovePr) => {
-
-    if(!bPrMode) {
-        //just merge and delete
-        //merge
-        //https://developer.github.com/v3/repos/merging/#merge-a-branch
-        const mergeOptions = {
-            method: 'POST',
-            headers: gitAuthheader(),
-            body: JSON.stringify({
-                committer,
-                base: mergetarget,
-                head: branch,
-                commit_message: `Deploy to ${mergetarget}\n${branch}`
-            })
-        };
-
-        await fetchJSON(`${githubApiUrl}${githubApiMerges}`, mergeOptions)
-            .then(() => {console.log(`MERGE Success: ${branch} -> ${mergetarget}`);});
-        //End Merge
-
-        await branchDelete(branch);
-    } else {
-        //create a pull request
-        //https://developer.github.com/v3/pulls/#create-a-pull-request
-        const githubApiPulls = 'pulls';
-        const prbody = {
-            method: 'POST',
-            headers: gitAuthheader(),
-            body: JSON.stringify({
-                committer,
-                base: mergetarget,
-                head: branch,
-                title: PrTitle
-                //body: PrBody
-                //,draft: bKeepPrOpen
-            })
-        };
-
-        const PrResult = await fetchJSON(`${githubApiUrl}${githubApiPulls}`, prbody)
-            .then(r => {
-                console.log(`PR create Success`);
-                return r;
-            });
-
-        //add labels to PR
-        //https://developer.github.com/v3/issues/labels/#add-labels-to-an-issue
-        if(PrLabels) {
-            const prlabelbody = {
-                method: 'POST',
-                headers: gitAuthheader(),
-                body: JSON.stringify({
-                    labels: PrLabels
-                })
-            };
-
-            const issue_number = PrResult.number;
-    
-            const PrLabelResult = await fetchJSON(`${githubApiUrl}issues/${issue_number}/labels`, prlabelbody)
-            .then(r => {
-                console.log(`PR Label Success`);
-                return r;
-            });
-        }
-
-        if(ApprovePr) {
-            //Auto Merge PR
-            //https://developer.github.com/v3/pulls/#merge-a-pull-request
-            //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
-            const prsha = PrResult.head.sha;
-            const prurl = PrResult.url;
-            
-            const prmergebody = {
-                method: 'PUT',
-                headers: gitAuthheader(),
-                body: JSON.stringify({
-                    committer,
-                    //commit_title: 'PR merge commit title',
-                    //commit_message: 'PR merge commit message',
-                    sha: prsha,
-                    merge_method: 'squash'
-                })
-            };
-
-            const PrMergeResult = await fetchJSON(`${prurl}/merge`, prmergebody)
-            .then(r => {
-                    console.log(`PR MERGE Success`);
-                    return r;
-                });
-
-            await branchDelete(branch);
-        }
-    }
 }
 
 //List of WP categories
