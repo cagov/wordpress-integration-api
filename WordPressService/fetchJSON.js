@@ -25,13 +25,8 @@ fetchJSON: async (URL, options, fetchoutput) =>
         if(!options)
             options = {method:'GET'};
 
-        context.res = {
-            status: 500,
-            body: `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`
-        };
-        console.error(context.res.body);
-        context.done();
+        const message = `fetchJSON error - ${options.method} - ${URL} : ${JSON.stringify(json)}`;
 
-        return Promise.reject(context.res.body);
+        return Promise.reject(new Error(message));
     })
 };

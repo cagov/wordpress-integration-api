@@ -195,8 +195,6 @@ const gitHubFileAdd = async (content, newFilePath, message, branch) =>
 module.exports = {
   gitDefaultOptions,
   gitHubMessage,
-  gitPutOptions,
-  committer,
   branchCreate,
   branchMerge,
   githubApiUrl,

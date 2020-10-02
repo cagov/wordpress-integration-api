@@ -3,8 +3,6 @@ const { fetchJSON } = require('./fetchJSON');
 const {
     gitDefaultOptions,
     gitHubMessage,
-    gitPutOptions,
-    committer,
     branchCreate,
     branchMerge,
     githubApiUrl,
@@ -291,16 +289,13 @@ const addTranslationPings = async () => {
         const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
         const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
         const branch = await branchCreate_WithName(`ping-${files_id}`,mergetarget);
-        const pingbody = {
-            committer,
-            branch,
-            message : gitHubMessage('Add translation ping',newFileName),
-            content : Buffer.from(JSON.stringify(pingJSON,null,2)).toString('base64')
-        };
-
-        //,"test": 1    ---Optional to indicate a test request
-        
-        await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, gitPutOptions(pingbody))
+        const content =  Buffer.from(JSON.stringify(pingJSON,null,2)).toString('base64');
+        await gitHubFileAdd(
+            content,
+            newFilePath,
+            gitHubMessage('Add translation ping',newFileName),
+            branch
+            )
             .then(() => {console.log(`Add translation ping Success: ${newFileName}`);});
         translation_pings_count++;
 
@@ -347,24 +342,29 @@ const addTranslationPings = async () => {
                         }
                         const content = Buffer.from(contentString).toString('base64');
 
-
                         const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
                         const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}?ref=${branch}`;
-        
-                        const filebody = {
-                            committer,
-                            branch,
-                            message : gitHubMessage('Add translation content',newContentName),
-                            content
-                        };
-        
-                        const putResult = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`, gitPutOptions(filebody));
-        
-                        console.log(
-                            putResult.ok
-                            ? `Add translation content Success: ${newContentName}`
-                            : `Add translation content Error: ${newContentName} - ${JSON.stringify(putResult.statusText)}`
-                        );
+
+                        const existingContent = await fetch(`${githubApiUrl}${githubApiContents}${newContentPath}`,gitDefaultOptions())
+                        if(existingContent.ok) {
+                            const json = await existingContent.json();
+                            await gitHubFileUpdate(
+                                content,
+                                json.url,
+                                json.sha,
+                                gitHubMessage('Update translation content',newContentName),
+                                branch
+                            )
+                            .then(() => {console.log(`Update translation content Success: ${newContentName}`);});
+                        } else {
+                            await gitHubFileAdd(
+                                content,
+                                newContentPath,
+                                gitHubMessage('Add translation content',newContentName),
+                                branch
+                            )
+                            .then(() => {console.log(`Add translation content Success: ${newContentName}`);});
+                        }
 
                         const newURL = `${githubApiUrl}${githubApiContents}${githubTranslationFlatPath}/${newContentName}?ref=${branch}`;
 
