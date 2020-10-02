@@ -115,7 +115,7 @@ const branchCreate_WithName = async (filename,mergetarget) => {
 }
 
 //merge and delete branch
-const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
+const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, ApprovePr) => {
 
     if(!bPrMode) {
         //just merge and delete
@@ -180,7 +180,7 @@ const branchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels) => {
             });
         }
 
-        if(autoApproveTranslationPrs) {
+        if(ApprovePr) {
             //Auto Merge PR
             //https://developer.github.com/v3/pulls/#merge-a-pull-request
             //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
@@ -519,7 +519,8 @@ const addTranslationPings = async () => {
             mergetarget,
             mergetarget===masterbranch,
             `Translation - ${sourceFiles.join(`, `)}`,
-            TranslationPrLabels
+            TranslationPrLabels,
+            autoApproveTranslationPrs
             );
     } //for
 }
