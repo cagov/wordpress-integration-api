@@ -6,8 +6,8 @@ const {
     gitHubMessage,
     gitPutOptions,
     committer,
+    branchCreate,
     branchDelete,
-    branchGetHead,
     githubApiUrl
 } = require('./gitHub');
 const { JSDOM } = require("jsdom");
@@ -108,27 +108,9 @@ const translationUpdateAddPost = (Post, download_path) => {
     }
 }
 
-//create a branch for this update
-const branchCreate = async (filename,mergetarget) => {
+const branchCreate_WithName = async (filename,mergetarget) => {
     const branch = mergetarget + branchprefix + filename;
-    const branchGetResult = await branchGetHead(mergetarget);
-    const sha = branchGetResult.object.sha;
-
-    const branchCreateBody = {
-        method: 'POST',
-        headers: gitAuthheader(),
-        body: JSON.stringify({
-            committer,
-            ref: `refs/heads/${branch}`,
-            sha
-        })
-    };
-
-    await branchDelete(branch); //in case the branch was never cleaned up
-
-    await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
-        .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
-
+    await branchCreate(branch,mergetarget);
     return branch;
 }
 
@@ -302,7 +284,7 @@ for(const mergetarget of mergetargets) {
 
     //Files to delete
     for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
-        const branch = await branchCreate(deleteTarget.filename,mergetarget);
+        const branch = await branchCreate_WithName(deleteTarget.filename,mergetarget);
         const message = gitHubMessage('Delete page',deleteTarget.name);
         const options = {
             method: 'DELETE',
@@ -355,7 +337,7 @@ for(const mergetarget of mergetargets) {
                         //Update file
                         body.message=gitHubMessage('Update page',targetfile.name);
                         body.sha=targetfile.sha;
-                        body.branch = await branchCreate(sourcefile.slug, mergetarget);
+                        body.branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
 
                         const updateResult = await fetchJSON(targetfile.url, gitPutOptions(body))
                             .then(r => {
@@ -381,7 +363,7 @@ for(const mergetarget of mergetargets) {
                 const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
                 const newFilePath = `${githubSyncFolder}/${newFileName}`;
                 body.message=gitHubMessage('Add page',newFileName);
-                body.branch = await branchCreate(sourcefile.slug, mergetarget);
+                body.branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
 
                 const addResult = await fetchJSON(`${githubApiUrl}${githubApiContents}${newFilePath}`, gitPutOptions(body))
                     .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
@@ -421,7 +403,7 @@ const addTranslationPings = async () => {
         const files_id = pingJSON.files_id;
         const newFileName = `ping-${files_id}-${new Date().getTime()}.json`;
         const newFilePath = `${githubTranslationPingsPath}/${newFileName}`;
-        const branch = await branchCreate(`ping-${files_id}`,mergetarget);
+        const branch = await branchCreate_WithName(`ping-${files_id}`,mergetarget);
         const pingbody = {
             committer,
             branch,

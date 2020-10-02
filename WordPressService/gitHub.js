@@ -32,6 +32,27 @@ const branchGetHeadUrl = branch => `${githubApiUrl}git/refs/heads/${branch}`;
 const branchGetHead = async branch =>
     fetchJSON(branchGetHeadUrl(branch),gitDefaultOptions());
 
+//create a branch for this update
+const branchCreate = async (branch,mergetarget) => {
+  const branchGetResult = await branchGetHead(mergetarget);
+  const sha = branchGetResult.object.sha;
+
+  const branchCreateBody = {
+      method: 'POST',
+      headers: gitAuthheader(),
+      body: JSON.stringify({
+          committer,
+          ref: `refs/heads/${branch}`,
+          sha
+      })
+  };
+
+  await branchDelete(branch); //in case the branch was never cleaned up
+
+  await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
+      .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
+}
+
 const branchDelete = async branch => {
   //delete
   //https://developer.github.com/v3/git/refs/#delete-a-reference
@@ -54,7 +75,7 @@ module.exports = {
   gitHubMessage,
   gitPutOptions,
   committer,
+  branchCreate,
   branchDelete,
-  branchGetHead,
   githubApiUrl
 }
