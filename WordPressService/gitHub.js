@@ -171,7 +171,6 @@ module.exports = {
   gitPutOptions,
   committer,
   branchCreate,
-  branchDelete,
   branchMerge,
   githubApiUrl
 }

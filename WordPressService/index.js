@@ -7,7 +7,6 @@ const {
     gitPutOptions,
     committer,
     branchCreate,
-    branchDelete,
     branchMerge,
     githubApiUrl
 } = require('./gitHub');
