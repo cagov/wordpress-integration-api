@@ -1,16 +1,13 @@
 const testPostMode = false;
 
 const fetch = require('node-fetch');
-const { fetchJSON } = require('./fetchJSON');
 const {
   gitHubMessage,
   gitHubBranchCreate,
   gitHubBranchMerge,
-  gitHubFileDelete,
   gitHubFileUpdate,
   gitHubFileAdd,
-  gitHubFileGet,
-  gitHubFileGetBlob
+  gitHubFileGet
 } = require('./gitHub');
 const autoApproveTranslationPrs = true;
 const githubTranslationPingsPath = `pages/translations/pings`;
