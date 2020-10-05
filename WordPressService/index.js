@@ -12,7 +12,8 @@ const {
 } = require('./gitHub');
 const {
     addTranslationPings,
-    postTranslations
+    postTranslations,
+    translationUpdateAddPost
 } = require('./avantPage');
 
 const { JSDOM } = require('jsdom');
@@ -33,8 +34,8 @@ const shaupdate = (file, wp_sha, github_sha) => {
 
 let pinghistory = []; //Used to log updates
 
-const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = true;
-//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = true;
+const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
@@ -44,13 +45,13 @@ const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
 const tag_ignore = 'do-not-deploy';
 const tag_translate = 'translate';
-const tag_translatepriority = 'translate-priority';
 const tag_fragment = 'fragment';
 const tag_table_data = 'table-data';
 const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
+const translationUpdatePayload = []; //Translation DB
 
 module.exports = async function (context, req) {
 
@@ -70,30 +71,6 @@ if(req.method==='GET') {
 //Logging data
 const started = getPacificTimeNow();
 let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, staging_only_count = 0;
-
-//Translation Update
-const translationUpdatePayload = [];
-const translationUpdateAddPost = (Post, download_path) => {
-    if(Post.translate) {
-        //Send pages marked "translate"
-        const translationRow = {
-            id : Post.id, 
-            slug : Post.slug, 
-            modified : Post.modified,
-            download_path // sample ... '/master/pages/wordpress-posts/reopening-matrix-data.json'
-        };
-
-//download_path should be testable by adding to...
-//https://raw.githubusercontent.com/cagov/covid19
-
-        if(Post.tags.includes(tag_translatepriority)) {
-            //priority translation marked
-            translationRow.priority = true;
-        }
-
-        translationUpdatePayload.push(translationRow);
-    }
-}
 
 const branchCreate_WithName = async (filename,mergetarget) => {
     const branch = mergetarget + '_wpservice_deploy_' + filename;
@@ -221,7 +198,7 @@ for(const mergetarget of mergetargets) {
                         
                         shaupdate(sourcefile, mysha, updateResult.content.sha);
                         if(mergetarget===masterbranch) {
-                            translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`);
+                            translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`,translationUpdatePayload);
                         }
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
@@ -244,7 +221,7 @@ for(const mergetarget of mergetargets) {
                 await gitHubBranchMerge(branch, mergetarget);
                 shaupdate(sourcefile, mysha, addResult.content.sha);
                 if(mergetarget===masterbranch) {
-                    translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`);
+                    translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`,translationUpdatePayload);
                 }
             }
         }
