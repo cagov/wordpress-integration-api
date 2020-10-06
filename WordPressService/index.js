@@ -34,7 +34,7 @@ const shaupdate = (file, wp_sha, github_sha) => {
 
 let pinghistory = []; //Used to log updates
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = true;
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
 const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
