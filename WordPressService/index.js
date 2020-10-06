@@ -51,9 +51,10 @@ const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
-const translationUpdatePayload = []; //Translation DB
 
 module.exports = async function (context, req) {
+
+const translationUpdatePayload = []; //Translation DB
 
 if(req.method==='GET') {
     //Hitting the service by default will show the index page.
