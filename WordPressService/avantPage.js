@@ -11,7 +11,6 @@ const {
 } = require('./gitHub');
 const autoApproveTranslationPrs = true;
 const githubTranslationPingsPath = `pages/translations/pings`;
-const githubTranslationContentPath = `pages/translations/content`;
 const githubTranslationFlatPath = `pages/translated-posts`;
 const tag_translatepriority = 'translate-priority';
 const translationDownloadUrl = `https://storage.googleapis.com/covid19-ca-files-avantpage/`;
@@ -106,32 +105,7 @@ const addTranslationPings = async (manifest,mergetargets,req) => {
                       const content = Buffer.from(contentString).toString('base64');
 
                       const newContentName = `${newslug}.${fileExtention}`;
-                      const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
-
-                      const existingContent = await gitHubFileGet(newContentPath,branch);
-                      if(existingContent.sha) {
-                          const json = existingContent;
-                          await gitHubFileUpdate(
-                              content,
-                              json.url,
-                              json.sha,
-                              gitHubMessage('Update translation content',newContentName),
-                              branch
-                          )
-                          .then(() => {console.log(`Update translation content Success: ${newContentName}`);});
-                      } else {
-                          await gitHubFileAdd(
-                              content,
-                              newContentPath,
-                              gitHubMessage('Add translation content',newContentName),
-                              branch
-                          )
-                          .then(() => {console.log(`Add translation content Success: ${newContentName}`);});
-                      }
-
-                      const newURL = `${githubTranslationFlatPath}/${newContentName}`;
-
-                      const existingFileResponse = await gitHubFileGet(newURL,branch);
+                      const existingFileResponse = await gitHubFileGet(`${githubTranslationFlatPath}/${newContentName}`,branch);
 
                       if(existingFileResponse.sha) {
                           //update
