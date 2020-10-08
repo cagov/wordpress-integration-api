@@ -79,8 +79,9 @@ const addTranslationPings = async (manifest,mergetargets,req) => {
 
               for(const langRow of translatedLanguages) {
                   const newslug = `${slug}-${langRow.slugpostfix}`;
+                  const fileExtention = manifestrecord.isTableData ? 'json' : 'html';
 
-                  const downloadContentName = `${slug}-${langRow.code}.html`;
+                  const downloadContentName = `${slug}-${langRow.code}.${fileExtention}`;
                   const downloadFilePath = `${files_id}/${post_id}/${downloadContentName}`;
                   const downloadURL = `${translationDownloadUrl}${downloadFilePath}`;
 
@@ -88,16 +89,14 @@ const addTranslationPings = async (manifest,mergetargets,req) => {
                   
                   if(file.status!==200) {
                       //Can't find the lang file
-                      console.log(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
+                      throw new Error(`FETCH FILE ERROR ${file.status} - ${downloadFilePath}`);
                   } else {
                       console.log(`processing...${downloadFilePath}`);
 
                       const html = getTranslatedPageData(await file.text());
 
                       let contentString = '';
-                      if(manifestrecord.isTableData)
-                          contentString = JsonFromHtmlTables(html);
-                      else if(manifestrecord.isFragment)
+                      if(manifestrecord.isFragment||manifestrecord.isTableData)
                           contentString = html;
                       else {
                           //replace the 'translate' tag with the correct lang tag
@@ -106,7 +105,7 @@ const addTranslationPings = async (manifest,mergetargets,req) => {
                       }
                       const content = Buffer.from(contentString).toString('base64');
 
-                      const newContentName = `${newslug}.${manifestrecord.isTableData ? 'json' : 'html'}`;
+                      const newContentName = `${newslug}.${fileExtention}`;
                       const newContentPath = `${githubTranslationContentPath}/${files_id}/${post_id}/${newContentName}`;
 
                       const existingContent = await gitHubFileGet(newContentPath,branch);
