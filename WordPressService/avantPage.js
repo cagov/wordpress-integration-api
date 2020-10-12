@@ -155,7 +155,7 @@ const postTranslations = async translationUpdatePayload => {
   }
   const payload = {
       method: 'POST',
-      body: JSON.stringify(testPostMode)
+      body: JSON.stringify(postBody)
   };
   return fetch(translationUpdateEndpointUrl, payload)
       .then(() => {console.log(`Translation Update POST Success`);})
