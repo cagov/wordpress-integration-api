@@ -53,7 +53,7 @@ const gitHubBranchCreate = async (branch,mergetarget) => {
       .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
 }
 
-const gitHubPrGetByName = async (base, branch) => {
+const gitHubPrGetByBranchName = async (base, branch) => {
 //xample...
 //https://developer.github.com/v3/pulls/#list-pull-requests
 //https://api.github.com/repos/cagov/covid19/pulls?state=all&base=master&head=cagov:mybranch
@@ -230,5 +230,5 @@ module.exports = {
   gitHubFileGet,
   gitHubFileGetBlob,
   gitHubBranchExists,
-  gitHubPrGetByName
+  gitHubPrGetByBranchName
 }
