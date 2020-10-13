@@ -53,6 +53,28 @@ const gitHubBranchCreate = async (branch,mergetarget) => {
       .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
 }
 
+const gitHubPrGetByName = async (base, branch) => {
+//xample...
+//https://developer.github.com/v3/pulls/#list-pull-requests
+//https://api.github.com/repos/cagov/covid19/pulls?state=all&base=master&head=cagov:mybranch
+    const url = `${githubApiUrl}pulls?state=all&base=${base}&head=${githubUser}:${branch}`;
+
+    const results = await fetchJSON(url, gitDefaultOptions());
+    return results.length ? results[0] : null;
+}
+
+//get matching references example...
+//https://developer.github.com/v3/git/refs/#get-a-reference
+//https://api.github.com/repos/cagov/covid19/git/ref/heads/staging
+
+//https://developer.github.com/v3/git/refs/#list-matching-references
+//https://api.github.com/repos/cagov/covid19/git/matching-refs/heads/staging
+const gitHubBranchExists = async branch => 
+    (await fetch(branchGetHeadUrl(branch), {
+        method: 'HEAD',
+        headers: gitAuthheader()
+    })).ok;
+
 const gitHubBranchDelete = async branch => {
   //delete
   //https://developer.github.com/v3/git/refs/#delete-a-reference
@@ -206,5 +228,7 @@ module.exports = {
   gitHubFileUpdate,
   gitHubFileAdd,
   gitHubFileGet,
-  gitHubFileGetBlob
+  gitHubFileGetBlob,
+  gitHubBranchExists,
+  gitHubPrGetByName
 }
