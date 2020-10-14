@@ -27,21 +27,19 @@ const doDailyStatsPr = async mergetargets => {
         if(PR) {console.log(`PR "${branch}" found...skipping`); continue;}; //PR found, nothing to do
 
         sqlResults = sqlResults || await getStatsDataset(); //only run the query if needed
-        const content = Buffer.from(JSON.stringify([sqlResults],null,2)).toString('base64');
-        
-        await gitHubBranchCreate(branch,mergetarget);
-        const targetfile = await gitHubFileGet(`pages/_data/${statsFileName}`,branch);
-        await gitHubFileUpdate(content,targetfile.url,targetfile.sha,gitHubMessage(`${today} Update`,statsFileName),branch);
-        const autoApproveMerge = mergetarget !== mergetargets[0]; //auto-push non-master
-        await gitHubBranchMerge(branch,mergetarget,true,`${today} Stats Update`,PrLabels,autoApproveMerge);
+        if (sqlResults) {
+            const content = Buffer.from(JSON.stringify([sqlResults],null,2)).toString('base64');
+                
+            await gitHubBranchCreate(branch,mergetarget);
+            const targetfile = await gitHubFileGet(`pages/_data/${statsFileName}`,branch);
+            await gitHubFileUpdate(content,targetfile.url,targetfile.sha,gitHubMessage(`${today} Update`,statsFileName),branch);
+            const autoApproveMerge = mergetarget !== mergetargets[0]; //auto-push non-master
+            await gitHubBranchMerge(branch,mergetarget,true,`${today} Stats Update`,PrLabels,autoApproveMerge);
+        }
     }
 }
 
-const getTodayPacificTime = () =>
-    new Date().toLocaleString("en-US", {year: 'numeric', month: 'numeric', day: 'numeric', timeZone: "America/Los_Angeles"});
-
-const getStatsDataset = async () => {
-
+const getDatabaseConnection = () => {
     const attrs = {
         account: 'cdt.west-us-2.azure',
         username: process.env["SNOWFLAKE_USER"],
@@ -50,6 +48,7 @@ const getStatsDataset = async () => {
     }
 
     if (!attrs.username || !attrs.password) {
+        //developers that don't set the creds can still use the rest of the code
         console.error('You need local.settings.json to contain "SNOWFLAKE_USER" & "SNOWFLAKE_PASS" to use the dataset features');
         return;
     }
@@ -59,12 +58,22 @@ const getStatsDataset = async () => {
 	// Try to connect to Snowflake, and check whether the connection was successful.
 	connection.connect(function(err, conn) {
 		if (err) {
-				console.error('Unable to connect: ' + err.message);
+            throw new Error('Unable to connect: ' + err.message);
 		} else {
-			console.log('Successfully connected to Snowflake.');
+            console.log('Successfully connected to Snowflake.');
 		}
     });
-    
+
+    return connection;
+}
+
+const getTodayPacificTime = () =>
+    new Date().toLocaleString("en-US", {year: 'numeric', month: 'numeric', day: 'numeric', timeZone: "America/Los_Angeles"});
+
+const getStatsDataset = async () => {
+    const connection = getDatabaseConnection();
+    if(!connection) return;
+
     const statsPromise = new Promise((resolve, reject) => {
         const sqlText = `SELECT TOP 1 * from COVID.PRODUCTION.VW_TABLEAU_COVID_METRICS_STATEWIDE ORDER BY DATE DESC`;
         connection.execute({
