@@ -69,6 +69,7 @@ if(req.method==='GET') {
     return;
 }
 
+//Check to see if we need stats update PRs
 await doDailyStatsPr(mergetargets);
 
 //Logging data

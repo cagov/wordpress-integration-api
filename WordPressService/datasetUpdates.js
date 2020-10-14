@@ -1,5 +1,4 @@
 const snowflake = require('snowflake-sdk');
-const fetch = require('node-fetch');
 const statsFileName = 'tableauCovidMetrics.json';
 
 const {
@@ -14,6 +13,7 @@ const {
 
 const PrLabels = ['Automatic Deployment'];
 
+//Check to see if we need stats update PRs, make them if we do.
 const doDailyStatsPr = async mergetargets => {
     let sqlResults = null;
     const today = getTodayPacificTime().replace(/\//g,'-');
@@ -47,6 +47,11 @@ const getStatsDataset = async () => {
         username: process.env["SNOWFLAKE_USER"],
         password: process.env["SNOWFLAKE_PASS"],
         warehouse: 'COVID_CDPH_VWH'
+    }
+
+    if (!attrs.username || !attrs.password) {
+        console.error('You need local.settings.json to contain "SNOWFLAKE_USER" & "SNOWFLAKE_PASS" to use the dataset features');
+        return;
     }
 
     const connection = snowflake.createConnection(attrs);
