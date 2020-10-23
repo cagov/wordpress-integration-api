@@ -14,7 +14,9 @@ const {
     postTranslations,
     translationUpdateAddPost
 } = require('./avantPage');
-const { slackBotChatPost } = require('./slackBot');
+const {
+    slackBotReportError
+} = require('./slackBot');
 
 const { JSDOM } = require('jsdom');
 const sha1 = require('sha1');
@@ -271,37 +273,12 @@ console.log('done.');
 } // End Try for the entire module
 catch (e) {
     //some error in the app.  Report it to slack.
-    console.error(e);
     const errorTitle = `Problem running ${appName}`;
-    const errorText = e.stack;
-    const slackAttachment = 
-        [
-            {
-                fallback: e.toString(),
-                color: "#f00",
-                pretext: errorTitle,
-                title: e.toString(),
-                fields: [
-                    {
-                        title: "Stack",
-                        value: errorText,
-                        short: false
-                    },
-                    {
-                        title: "Request",
-                        value: JSON.stringify(req), //no formatting on purpose.
-                        short: false
-                    }
-                ],
-                footer: "WordPressService",
-                ts: new Date().getTime()
-            }
-        ];
-
-    await slackBotChatPost(slackErrorChannel,null,slackAttachment);
+    slackBotReportError(slackErrorChannel,errorTitle,e,req);
+    console.error(e);
 
     context.res = {
-        body: `<html><title>${errorTitle}</title><body><h1>${errorTitle}</h1><h2>Error Text</h2><pre>${errorText}</pre><h2>Original Request</h2><pre>${JSON.stringify(req,null,2)}</pre></body></html>`,
+        body: `<html><title>${errorTitle}</title><body><h1>${errorTitle}</h1><h2>Error Text</h2><pre>${e.stack}</pre><h2>Original Request</h2><pre>${JSON.stringify(req,null,2)}</pre></body></html>`,
         status: 500,
         headers: {
             'Content-Type' : 'text/html'
