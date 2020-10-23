@@ -273,7 +273,6 @@ catch (e) {
     //some error in the app.  Report it to slack.
     const errorTitle = `Problem running ${appName}`;
     slackBotReportError(slackErrorChannel,errorTitle,e,req);
-    console.error(e);
 
     context.res = {
         body: `<html><title>${errorTitle}</title><body><h1>${errorTitle}</h1><h2>Error Text</h2><pre>${e.stack}</pre><h2>Original Request</h2><pre>${JSON.stringify(req,null,2)}</pre></body></html>`,
