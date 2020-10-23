@@ -1,5 +1,4 @@
 const { fetchJSON } = require('./fetchJSON');
-const { doDailyStatsPr } = require('./datasetUpdates');
 const {
     gitHubMessage,
     gitHubBranchCreate,
@@ -34,8 +33,8 @@ const shaupdate = (file, wp_sha, github_sha) => {
 
 let pinghistory = []; //Used to log updates
 
-//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false, checkStatsPrs = false;
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true, checkStatsPrs = true;
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
+const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
@@ -69,10 +68,6 @@ if(req.method==='GET') {
     return;
 }
 
-//Check to see if we need stats update PRs
-if (checkStatsPrs) {
-    await doDailyStatsPr(mergetargets);
-}
 //Logging data
 const started = getPacificTimeNow();
 let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, staging_only_count = 0;
