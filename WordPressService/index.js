@@ -55,7 +55,7 @@ const slackErrorChannel = 'C01DBP67MSQ'; // 'C01AA1ZB05B';
 
 module.exports = async function (context, req) {
 
-try {
+try { // The entire module
 
 const translationUpdatePayload = []; //Translation DB
 
@@ -268,7 +268,7 @@ if(postTranslationUpdates&&translationUpdatePayload.length) {
 }
 
 console.log('done.');
-}
+} // End Try for the entire module
 catch (e) {
     //some error in the app.  Report it to slack.
     console.error(e);
