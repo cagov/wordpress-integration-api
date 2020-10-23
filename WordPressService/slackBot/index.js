@@ -1,6 +1,5 @@
 const fetch = require('node-fetch');
 const slackApiChatPost = 'https://slack.com/api/chat.postMessage';
-const appName = 'cagov Slackbot';
 
 //For help building attachments...go here...
 //https://api.slack.com/docs/messages/builder
@@ -37,37 +36,20 @@ const slackBotChatPost = async (channel,text,attachments) => {
   return await fetch(slackApiChatPost,slackApiPost(payload));
 }
 
-const slackBotReportError = async (channel,title,e,req) => {
-  console.error(e);
+//request/data is optional
+const slackBotReportError = async (channel,title,errorObject,request,data) => {
+  console.error(errorObject);
 
-  const slackAttachment = 
-      [
-          {
-              fallback: e.toString(),
-              color: "#f00",
-              pretext: title,
-              title: e.toString(),
-              fields: [
-                  {
-                      title: "Stack",
-                      value: e.stack,
-                      short: false
-                  }
-              ],
-              footer: appName,
-              ts: new Date().getTime()
-          }
-      ];
+  let slackText = `${title}\n*Error Stack*\n\`\`\`${errorObject.stack}\`\`\``;
 
-  if (req) {
-    slackAttachment[0].fields.push({
-      title: "Request",
-      value: JSON.stringify(req), //no formatting on purpose.
-      short: false
-    });
+  if (request) {
+    slackText += `\n\n*Request*\n\`\`\`${JSON.stringify(request,null,2)}\`\`\``;
+  }
+  if (data) {
+    slackText += `\n\n*Data*\n\`\`\`${JSON.stringify(data,null,2)}\`\`\``;
   }
 
-  return await slackBotChatPost(channel,null,slackAttachment);
+  return await slackBotChatPost(channel,slackText);
 }
 
 module.exports = {
