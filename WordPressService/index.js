@@ -14,9 +14,7 @@ const {
     postTranslations,
     translationUpdateAddPost
 } = require('./avantPage');
-const {
-    slackBotReportError
-} = require('./slackBot');
+const { slackBotReportError } = require('./slackBot');
 
 const { JSDOM } = require('jsdom');
 const sha1 = require('sha1');
