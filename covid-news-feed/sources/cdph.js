@@ -43,11 +43,13 @@ function parseItem(news) {
     let delimiter = ', 2020';
     if(desc.indexOf(delimiter) > -1) {
       let pieces = desc.split(delimiter);
-      let parsedDate = new Date(pieces[0].trim()+delimiter)
+      let parsedDate = new Date(pieces[0]
+        .replace(/\u200B/g,'') //also remove char 8203 (Unicode Character 'ZERO WIDTH SPACE' (U+200B).)
+        .trim()+delimiter);
       if(parsedDate && parsedDate.getTime() > 1577865600000 && parsedDate.getTime() < 1609401600000) {
         newsObject.date = parsedDate.toISOString();
       } else {
-        console.log('date fail')
+        console.error('date fail');
       }
       let description = pieces[1].trim();
       if(description.indexOf('-') === 0 || description.indexOf('–') === 0) {
