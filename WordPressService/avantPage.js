@@ -9,7 +9,7 @@ const {
   gitHubFileAdd,
   gitHubFileGet
 } = require('./gitHub');
-const autoApproveTranslationPrs = true;
+const autoApproveTranslationPrs = false;
 const githubTranslationPingsPath = `pages/translations/pings`;
 const githubTranslationFlatPath = `pages/translated-posts`;
 const tag_translatepriority = 'translate-priority';
