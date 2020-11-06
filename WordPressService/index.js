@@ -305,7 +305,7 @@ const JsonFromHtmlTables = html => {
             (x,i)=> {
                 rowdata[headers[i]] = x
                     .innerHTML
-                    .replace(/––en/g,'--en'); //remove stupid wordpress double dash replacements
+                    .replace(/––en\./g,'--en.'); //remove stupid wordpress double dash replacements
             });
         rows.push(rowdata);
       });
