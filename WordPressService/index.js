@@ -301,7 +301,12 @@ const JsonFromHtmlTables = html => {
 
       table.querySelectorAll('tbody tr').forEach(target => {
         const rowdata = {};
-        target.childNodes.forEach((x,i)=>rowdata[headers[i]] = x.innerHTML);
+        target.childNodes.forEach(
+            (x,i)=> {
+                rowdata[headers[i]] = x
+                    .innerHTML
+                    .replace(/––en/g,'--en'); //remove stupid wordpress double dash replacements
+            });
         rows.push(rowdata);
       });
   
