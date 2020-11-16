@@ -7,7 +7,7 @@ const {
     gitHubFileUpdate,
     gitHubFileAdd,
     gitHubFileGet,
-    gitHubFileGetBlob
+    gitHubFileRefresh
 } = require('./gitHub');
 const {
     addTranslationPings,
@@ -173,7 +173,7 @@ for(const mergetarget of mergetargets) {
             console.log(`PAGE Skipped: ${sourcefile.filename} -> ${mergetarget}`);
             staging_only_count++;
         } else {
-            const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
+            let targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
             const content = Buffer.from(sourcefile.html).toString('base64');
             const mysha = sha1(sourcefile.html);
 
@@ -186,12 +186,14 @@ for(const mergetarget of mergetargets) {
                     sha_match_count++;
                 } else {
                     //compare
-                    const targetcontent = await gitHubFileGetBlob(targetfile.sha);
-                    
-                    if(content!==targetcontent.content.replace(/\n/g,'')) {
+                    targetfile = await gitHubFileRefresh(targetfile); //reload the meta so we update the latest
+                    //const targetcontent = Buffer.from(targetfile.content,'base64').toString();
+                    const targetcontent = targetfile.content.replace(/\n/g,'');
+                    if(content!==targetcontent) {
                         //Update file
                         const message = gitHubMessage('Update page',targetfile.name);
                         const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
+                        
                         const updateResult = await gitHubFileUpdate(content,targetfile.url,targetfile.sha,message,branch)
                             .then(r => {
                                 console.log(`UPDATE Success: ${sourcefile.filename}`);
@@ -206,7 +208,7 @@ for(const mergetarget of mergetargets) {
                         }
                     } else {
                         console.log(`File compare matched: ${sourcefile.filename}`);
-                        shaupdate(sourcefile, mysha, targetcontent.sha);
+                        shaupdate(sourcefile, mysha, targetfile.sha);
 
                         binary_match_count++;
                     }
