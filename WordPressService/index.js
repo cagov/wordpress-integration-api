@@ -77,7 +77,7 @@ const started = getPacificTimeNow();
 let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, staging_only_count = 0;
 
 const branchCreate_WithName = async (filename,mergetarget) => {
-    const branch = mergetarget + '_wpservice_deploy_' + filename;
+    const branch = `${mergetarget}_wpservice_deploy_${filename}_${new Date().toISOString()}`.replace(/\W/g,'_');
     await gitHubBranchCreate(branch,mergetarget);
     return branch;
 }
