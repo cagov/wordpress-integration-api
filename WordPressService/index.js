@@ -10,7 +10,6 @@ const {
     gitHubFileRefresh
 } = require('./gitHub');
 const {
-    addTranslationPings,
     postTranslations,
     translationUpdateAddPost
 } = require('./avantPage');
@@ -233,8 +232,6 @@ for(const mergetarget of mergetargets) {
         }
     }
 }
-
-await addTranslationPings(manifest,mergetargets,req);
 
 //Add to log
 const total_changes = add_count+update_count+delete_count;
