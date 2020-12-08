@@ -192,6 +192,9 @@ for(const mergetarget of mergetargets) {
                         //Update file
                         const message = gitHubMessage('Update page',targetfile.name);
                         const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
+
+                        //get the file reference attached to the new branch.
+                        targetfile = await gitHubFileGet(targetfile.path,branch);
                         
                         const updateResult = await gitHubFileUpdate(content,targetfile.url,targetfile.sha,message,branch)
                             .then(r => {
