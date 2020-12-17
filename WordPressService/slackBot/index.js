@@ -14,7 +14,7 @@ const slackBotGetToken = () => {
   }
 
   return token;
-}
+};
 
 const slackApiPost = bodyJSON =>
     ({
@@ -31,10 +31,10 @@ const slackBotChatPost = async (channel,text,attachments) => {
     channel,
     text,
     attachments
-  }
+  };
 
   return await fetch(slackApiChatPost,slackApiPost(payload));
-}
+};
 
 //request/data is optional
 const slackBotReportError = async (channel,title,errorObject,request,data) => {
@@ -50,9 +50,9 @@ const slackBotReportError = async (channel,title,errorObject,request,data) => {
   }
 
   return await slackBotChatPost(channel,slackText);
-}
+};
 
 module.exports = {
   slackBotChatPost,
   slackBotReportError
-}
+};

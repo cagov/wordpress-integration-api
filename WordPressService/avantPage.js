@@ -17,8 +17,8 @@ const postTranslations = async translationUpdatePayload => {
       body: JSON.stringify(postBody)
   };
   return fetch(translationUpdateEndpointUrl, payload)
-      .then(() => {console.log(`Translation Update POST Success`);})
-}
+      .then(() => {console.log(`Translation Update POST Success`);});
+};
 
 const translationUpdateAddPost = (Post, download_path, translationUpdatePayload) => {
   if(Post.translate) {
@@ -40,9 +40,9 @@ const translationUpdateAddPost = (Post, download_path, translationUpdatePayload)
 
       translationUpdatePayload.push(translationRow);
   }
-}
+};
 
 module.exports = {
   postTranslations,
   translationUpdateAddPost
-}
+};

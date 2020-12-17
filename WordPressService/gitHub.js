@@ -49,7 +49,7 @@ const gitHubBranchCreate = async (branch,mergetarget) => {
 
   await fetchJSON(`${githubApiUrl}git/refs`, branchCreateBody)
       .then(() => {console.log(`BRANCH CREATE Success: ${branch}`); });
-}
+};
 
 const gitHubPrGetByBranchName = async (base, branch) => {
 //xample...
@@ -59,7 +59,7 @@ const gitHubPrGetByBranchName = async (base, branch) => {
 
     const results = await fetchJSON(url, gitDefaultOptions());
     return results.length ? results[0] : null;
-}
+};
 
 //get matching references example...
 //https://developer.github.com/v3/git/refs/#get-a-reference
@@ -87,7 +87,7 @@ const gitHubBranchDelete = async branch => {
   } else {
       console.log(`BRANCH DELETE N/A: ${branch}`);
   }
-}
+};
 
 //merge and delete branch
 const gitHubBranchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels, ApprovePr) => {
@@ -182,7 +182,7 @@ const gitHubBranchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels
           await gitHubBranchDelete(branch);
       }
   }
-}
+};
 
 const gitHubFileDelete = async (url, sha, message, branch) => 
     await fetchJSON(url, {
@@ -234,4 +234,4 @@ module.exports = {
   gitHubFileGetBlob,
   gitHubBranchExists,
   gitHubPrGetByBranchName
-}
+};

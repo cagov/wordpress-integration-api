@@ -10,17 +10,17 @@ fetchJSON: async (URL, options, fetchoutput) =>
     })
     .then(response =>
         response.ok
-        ? (
+        ? 
             response.status===200||response.status===201
             ? response.json()
-            : null)
-        : (
+            : null
+        : 
             response.status===404
             ? []
-            : Promise.reject(response))
+            : Promise.reject(response)
        )
     .catch(async response => {
-        const json = (await (response.json ? response.json() : null)) || response;
+        const json = await (response.json ? response.json() : null) || response;
 
         if(!options)
             options = {method:'GET'};
