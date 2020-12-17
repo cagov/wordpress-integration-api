@@ -17,14 +17,14 @@ const slackBotGetToken = () => {
 };
 
 const slackApiPost = bodyJSON =>
-    ({
-        method: 'POST',
-        headers: {
-          'Authorization' : `Bearer ${slackBotGetToken()}`,
-          'Content-Type': 'application/json;charset=utf-8'
-        },
-        body: JSON.stringify(bodyJSON)
-    });
+  ({
+    method: 'POST',
+    headers: {
+      'Authorization' : `Bearer ${slackBotGetToken()}`,
+      'Content-Type': 'application/json;charset=utf-8'
+    },
+    body: JSON.stringify(bodyJSON)
+  });
 
 const slackBotChatPost = async (channel,text,attachments) => {
   const payload = {

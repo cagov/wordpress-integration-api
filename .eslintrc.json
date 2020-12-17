@@ -16,17 +16,19 @@
         }
     },
     "rules": {
-        "semi": "error",
-        "no-var": "warn",
-        "no-extra-parens": "warn",
-        "block-scoped-var": "warn",
-        "class-methods-use-this": "warn",
-        "no-shadow": "warn",
         "arrow-parens": [
           "warn",
           "as-needed"
         ],
+        "block-scoped-var": "warn",
+        "class-methods-use-this": "warn",
+        "indent": ["warn", 2],
+        "no-extra-parens": "warn",
+        "no-shadow": "warn",
+        "no-tabs": "warn",
         "no-undef": "warn",
-        "prefer-arrow-callback": "warn"
+        "no-var": "warn",
+        "prefer-arrow-callback": "warn",
+        "semi": "warn"
       }
 }
