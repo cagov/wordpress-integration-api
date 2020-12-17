@@ -13,36 +13,36 @@ const postTranslations = async translationUpdatePayload => {
     postBody.test = 1;
   }
   const payload = {
-      method: 'POST',
-      body: JSON.stringify(postBody)
+    method: 'POST',
+    body: JSON.stringify(postBody)
   };
   return fetch(translationUpdateEndpointUrl, payload)
-      .then(() => {console.log(`Translation Update POST Success`);})
-}
+    .then(() => {console.log(`Translation Update POST Success`);});
+};
 
 const translationUpdateAddPost = (Post, download_path, translationUpdatePayload) => {
   if(Post.translate) {
-      //Send pages marked "translate"
-      const translationRow = {
-          id : Post.id, 
-          slug : Post.slug, 
-          modified : Post.modified,
-          download_path // sample ... '/master/pages/wordpress-posts/reopening-matrix-data.json'
-      };
+    //Send pages marked "translate"
+    const translationRow = {
+      id : Post.id,
+      slug : Post.slug,
+      modified : Post.modified,
+      download_path // sample ... '/master/pages/wordpress-posts/reopening-matrix-data.json'
+    };
 
-//download_path should be testable by adding to...
-//https://raw.githubusercontent.com/cagov/covid19
+    //download_path should be testable by adding to...
+    //https://raw.githubusercontent.com/cagov/covid19
 
-      if(Post.tags.includes(tag_translatepriority)) {
-          //priority translation marked
-          translationRow.priority = true;
-      }
+    if(Post.tags.includes(tag_translatepriority)) {
+      //priority translation marked
+      translationRow.priority = true;
+    }
 
-      translationUpdatePayload.push(translationRow);
+    translationUpdatePayload.push(translationRow);
   }
-}
+};
 
 module.exports = {
   postTranslations,
   translationUpdateAddPost
-}
+};
