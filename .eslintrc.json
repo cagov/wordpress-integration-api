@@ -1,0 +1,32 @@
+{
+    "env": {
+        "browser": false,
+        "commonjs": true,
+        "es2021": true,
+        "node": true
+    },
+    "extends": [
+        "eslint:recommended"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 12,
+        "sourceType": "module",
+        "ecmaFeatures": {
+          "jsx": true
+        }
+    },
+    "rules": {
+        "semi": "error",
+        "no-var": "warn",
+        "no-extra-parens": "warn",
+        "block-scoped-var": "warn",
+        "class-methods-use-this": "warn",
+        "no-shadow": "warn",
+        "arrow-parens": [
+          "warn",
+          "as-needed"
+        ],
+        "no-undef": "warn",
+        "prefer-arrow-callback": "warn"
+      }
+}

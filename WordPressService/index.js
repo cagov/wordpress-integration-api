@@ -28,7 +28,7 @@ const shaupdate = (file, wp_sha, github_sha) => {
     if(wp_sha&&github_sha&&!shamatch(wp_sha, github_sha, file.slug, file.modified)) {
         shadabase.push({wp_sha, github_sha, slug:file.slug, modified:file.modified});
     }
-}
+};
 //end shadabase support
 
 let pinghistory = []; //Used to log updates
@@ -79,7 +79,7 @@ const branchCreate_WithName = async (filename,mergetarget) => {
     const branch = `${mergetarget}_wpservice_deploy_${filename}_${new Date().toISOString()}`.replace(/\W/g,'_');
     await gitHubBranchCreate(branch,mergetarget);
     return branch;
-}
+};
 
 //List of WP categories
 const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
@@ -113,7 +113,7 @@ const getWordPressPosts = async () => {
         tags : defaultTags.concat(sf.tags.map(x=>taglist.find(y=>y.id===x).name)),
         category : sf.categories.length>0 ? categorylist.find(y=>y.id===sf.categories[0]).name : null
     }));
-}
+};
 
 const manifest = {posts:[]};
 
@@ -130,7 +130,7 @@ manifest.posts.forEach(sourcefile => {
     sourcefile.addToSitemap = !sourcefile.tags.includes(tag_nocrawl); //do-not-crawl
     sourcefile.translate = sourcefile.tags.includes(tag_translate);
     sourcefile.ignore = sourcefile.tags.includes(tag_ignore); //do-not-deploy
-    sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || (tag_langprefix+tag_langdefault)).replace(tag_langprefix,'');
+    sourcefile.lang = (sourcefile.tags.find(x=>x.startsWith(tag_langprefix)) || tag_langprefix+tag_langdefault).replace(tag_langprefix,'');
     sourcefile.nomaster = sourcefile.tags.includes(tag_nomaster); //staging-only
 
     if (sourcefile.isTableData)
@@ -158,7 +158,7 @@ for(const mergetarget of mergetargets) {
         const message = gitHubMessage('Delete page',deleteTarget.name);
 
         await gitHubFileDelete(deleteTarget.url, deleteTarget.sha, message, branch)
-            .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;})
+            .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;});
 
         await gitHubBranchMerge(branch,mergetarget);
     }
@@ -223,7 +223,7 @@ for(const mergetarget of mergetargets) {
                 const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
 
                 const addResult = await gitHubFileAdd(content,newFilePath,message,branch)
-                    .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;})
+                    .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;});
 
                 add_count++;
                 await gitHubBranchMerge(branch, mergetarget);
@@ -285,7 +285,7 @@ catch (e) {
     };
 }
 context.done();
-}
+};
 
 const getPacificTimeNow = () => {
     let usaTime = new Date().toLocaleString("en-US", {timeZone: "America/Los_Angeles"});
