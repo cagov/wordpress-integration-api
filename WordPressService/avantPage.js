@@ -24,8 +24,8 @@ const translationUpdateAddPost = (Post, download_path, translationUpdatePayload)
   if(Post.translate) {
     //Send pages marked "translate"
     const translationRow = {
-      id : Post.id, 
-      slug : Post.slug, 
+      id : Post.id,
+      slug : Post.slug,
       modified : Post.modified,
       download_path // sample ... '/master/pages/wordpress-posts/reopening-matrix-data.json'
     };

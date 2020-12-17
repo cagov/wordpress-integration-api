@@ -67,7 +67,7 @@ const gitHubPrGetByBranchName = async (base, branch) => {
 
 //https://developer.github.com/v3/git/refs/#list-matching-references
 //https://api.github.com/repos/cagov/covid19/git/matching-refs/heads/staging
-const gitHubBranchExists = async branch => 
+const gitHubBranchExists = async branch =>
   (await fetch(branchGetHeadUrl(branch), {
     method: 'HEAD',
     headers: gitAuthheader()
@@ -146,7 +146,7 @@ const gitHubBranchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels
       };
 
       const issue_number = PrResult.number;
-  
+
       await fetchJSON(`${githubApiUrl}issues/${issue_number}/labels`, prlabelbody)
         .then(r => {
           console.log(`PR Label Success`);
@@ -160,7 +160,7 @@ const gitHubBranchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels
       //Merge method to use. Possible values are merge, squash or rebase. Default is merge.
       const prsha = PrResult.head.sha;
       const prurl = PrResult.url;
-          
+
       const prmergebody = {
         method: 'PUT',
         headers: gitAuthheader(),
@@ -184,7 +184,7 @@ const gitHubBranchMerge = async (branch, mergetarget, bPrMode, PrTitle, PrLabels
   }
 };
 
-const gitHubFileDelete = async (url, sha, message, branch) => 
+const gitHubFileDelete = async (url, sha, message, branch) =>
   await fetchJSON(url, {
     method: 'DELETE',
     headers: gitAuthheader(),
@@ -219,7 +219,7 @@ const gitHubFileGet = async (path, branch) =>
 const gitHubFileRefresh = async gitHubFile =>
   await fetchJSON(gitHubFile.url,gitDefaultOptions());
 
-const gitHubFileGetBlob = async sha => 
+const gitHubFileGetBlob = async sha =>
   await fetchJSON(`${githubApiUrl}git/blobs/${sha}`,gitDefaultOptions());
 
 module.exports = {

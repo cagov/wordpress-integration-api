@@ -21,7 +21,7 @@ const fs = require('fs');
 
 //begin shadabase support
 const shadabase = [];
-const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) => 
+const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) =>
   shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
 //set the sha values in a file record
 const shaupdate = (file, wp_sha, github_sha) => {
@@ -100,7 +100,7 @@ module.exports = async function (context, req) {
       const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
       for(let currentpage = 2; currentpage<=totalpages; currentpage++)
         (await fetchJSON(`${fetchquery}&page=${currentpage}`)).forEach(x=>sourcefiles.push(x));
-    
+
       return sourcefiles.map(sf=>({
         slug : sf.slug,
         id : sf.id,
@@ -137,14 +137,14 @@ module.exports = async function (context, req) {
         sourcefile.html = JsonFromHtmlTables(content);
       else if (sourcefile.isFragment)
         sourcefile.html = content;
-      else 
+      else
         sourcefile.html = `---\nlayout: "page.njk"\ntitle: "${sourcefile.pagetitle}"\nmeta: "${sourcefile.meta}"\nauthor: "State of California"\npublishdate: "${sourcefile.modified}Z"\n${tagtext}addtositemap: ${sourcefile.addToSitemap}\n---\n${content}`;
     });
 
     for(const mergetarget of mergetargets) {
     //Query GitHub files
       const targetfiles = (await gitHubFileGet(githubSyncFolder,mergetarget))
-        .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name)); 
+        .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name));
 
       //Add custom columns to targetfile data
       targetfiles.forEach(x=>{
@@ -178,7 +178,7 @@ module.exports = async function (context, req) {
 
           if(targetfile) {
             //UPDATE
-                
+
             if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
               console.log(`SHA matched: ${sourcefile.filename}`);
               shaupdate(sourcefile, mysha, targetfile.sha);
@@ -195,7 +195,7 @@ module.exports = async function (context, req) {
 
                 //get the file reference attached to the new branch.
                 targetfile = await gitHubFileGet(targetfile.path,branch);
-                        
+
                 const updateResult = await gitHubFileUpdate(content,targetfile.url,targetfile.sha,message,branch)
                   .then(r => {
                     console.log(`UPDATE Success: ${sourcefile.filename}`);
@@ -203,7 +203,7 @@ module.exports = async function (context, req) {
                   });
                 update_count++;
                 await gitHubBranchMerge(branch, mergetarget);
-                        
+
                 shaupdate(sourcefile, mysha, updateResult.content.sha);
                 if(mergetarget===masterbranch) {
                   translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`,translationUpdatePayload);
@@ -293,9 +293,9 @@ const getPacificTimeNow = () => {
   return usaTime.toLocaleString();
 };
 
-const JsonFromHtmlTables = html => {    
+const JsonFromHtmlTables = html => {
   const data = {};
-  
+
   JSDOM.fragment(html).querySelectorAll('table').forEach((table,tableindex) => {
     const rows = [];
 
@@ -311,9 +311,9 @@ const JsonFromHtmlTables = html => {
         });
       rows.push(rowdata);
     });
-  
+
     data[`Table${tableindex+1}`] = rows;
   });
-  
+
   return JSON.stringify(data,null,2);
 };

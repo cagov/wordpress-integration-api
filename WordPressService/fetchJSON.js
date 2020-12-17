@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 //Common Fetch functions
 module.exports = {
-  fetchJSON: async (URL, options, fetchoutput) => 
+  fetchJSON: async (URL, options, fetchoutput) =>
     await fetch(URL,options)
       .then(response => {
         if (fetchoutput)
@@ -10,11 +10,11 @@ module.exports = {
       })
       .then(response =>
         response.ok
-          ? 
+          ?
           response.status===200||response.status===201
             ? response.json()
             : null
-          : 
+          :
           response.status===404
             ? []
             : Promise.reject(response)
