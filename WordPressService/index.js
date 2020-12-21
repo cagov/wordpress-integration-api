@@ -1,14 +1,12 @@
 const { fetchJSON } = require('./fetchJSON');
-const {
-  gitHubMessage,
-  gitHubBranchCreate,
-  gitHubBranchMerge,
-  gitHubFileDelete,
-  gitHubFileUpdate,
-  gitHubFileAdd,
-  gitHubFileGet,
-  gitHubFileRefresh
-} = require('./gitHub');
+const GitHub = require('github-api');
+const committer = {
+  'name': 'WordPressService',
+  'email': 'data@alpha.ca.gov'
+};
+const githubUser = 'cagov';
+const githubRepo = 'covid19';
+const gitHubMessage = (action, file) => `${action} - ${file}`;
 const {
   postTranslations,
   translationUpdateAddPost
@@ -50,11 +48,14 @@ const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
-const slackErrorChannel = 'C01DBP67MSQ'; // 'C01AA1ZB05B';
+//const slackErrorChannel = 'C01H6RB99E2'; //Carter's debug channel
+const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
 
 module.exports = async function (context, req) {
 
   try { // The entire module
+    const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
+      .getRepo(githubUser,githubRepo);
 
     const translationUpdatePayload = []; //Translation DB
 
@@ -74,12 +75,6 @@ module.exports = async function (context, req) {
     //Logging data
     const started = getPacificTimeNow();
     let add_count = 0, update_count = 0, delete_count = 0, binary_match_count = 0, sha_match_count = 0, ignore_count = 0, staging_only_count = 0;
-
-    const branchCreate_WithName = async (filename,mergetarget) => {
-      const branch = `${mergetarget}_wpservice_deploy_${filename}_${new Date().toISOString()}`.replace(/\W/g,'_');
-      await gitHubBranchCreate(branch,mergetarget);
-      return branch;
-    };
 
     //List of WP categories
     const categorylist = (await fetchJSON(`${wordPressApiUrl}categories?context=embed&hide_empty=true&per_page=100&orderby=slug&order=asc`))
@@ -142,8 +137,8 @@ module.exports = async function (context, req) {
     });
 
     for(const mergetarget of mergetargets) {
-    //Query GitHub files
-      const targetfiles = (await gitHubFileGet(githubSyncFolder,mergetarget))
+      //Query GitHub files
+      const targetfiles = (await gitRepo.getContents(mergetarget,githubSyncFolder,false)).data
         .filter(x=>x.type==='file'&&(x.name.endsWith('.html')||x.name.endsWith('.json'))&&!ignoreFiles.includes(x.name));
 
       //Add custom columns to targetfile data
@@ -154,13 +149,9 @@ module.exports = async function (context, req) {
 
       //Files to delete
       for(const deleteTarget of targetfiles.filter(x=>!manifest.posts.find(y=>x.filename===y.filename))) {
-        const branch = await branchCreate_WithName(deleteTarget.filename,mergetarget);
-        const message = gitHubMessage('Delete page',deleteTarget.name);
-
-        await gitHubFileDelete(deleteTarget.url, deleteTarget.sha, message, branch)
-          .then(() => {console.log(`DELETE Success: ${deleteTarget.path}`);delete_count++;});
-
-        await gitHubBranchMerge(branch,mergetarget);
+        await gitRepo.deleteFile(mergetarget,deleteTarget.path);
+        console.log(`DELETE Success: ${deleteTarget.path}`);
+        delete_count++;
       }
 
       //ADD/UPDATE
@@ -185,26 +176,21 @@ module.exports = async function (context, req) {
               sha_match_count++;
             } else {
               //compare
-              targetfile = await gitHubFileRefresh(targetfile); //reload the meta so we update the latest
+              targetfile = (await gitRepo.getContents(mergetarget,targetfile.path,false)).data; //reload the meta so we update the latest
               //const targetcontent = Buffer.from(targetfile.content,'base64').toString();
               const targetcontent = targetfile.content.replace(/\n/g,'');
               if(content!==targetcontent) {
                 //Update file
                 const message = gitHubMessage('Update page',targetfile.name);
-                const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
+                await gitRepo.writeFile(mergetarget, targetfile.path, content, message, {committer,encode:false},
+                  (_a,results) => {
+                    shaupdate(sourcefile, mysha, results.content.sha);
+                  }
+                );
 
-                //get the file reference attached to the new branch.
-                targetfile = await gitHubFileGet(targetfile.path,branch);
-
-                const updateResult = await gitHubFileUpdate(content,targetfile.url,targetfile.sha,message,branch)
-                  .then(r => {
-                    console.log(`UPDATE Success: ${sourcefile.filename}`);
-                    return r;
-                  });
+                console.log(`UPDATE Success: ${sourcefile.filename}`);
                 update_count++;
-                await gitHubBranchMerge(branch, mergetarget);
 
-                shaupdate(sourcefile, mysha, updateResult.content.sha);
                 if(mergetarget===masterbranch) {
                   translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`,translationUpdatePayload);
                 }
@@ -220,14 +206,15 @@ module.exports = async function (context, req) {
             const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
             const message = gitHubMessage('Add page',newFileName);
-            const branch = await branchCreate_WithName(sourcefile.slug, mergetarget);
+            await gitRepo.writeFile(mergetarget, newFilePath, content, message, {committer,encode:false},
+              (_a,results) => {
+                shaupdate(sourcefile, mysha, results.content.sha);
+              }
+            );
 
-            const addResult = await gitHubFileAdd(content,newFilePath,message,branch)
-              .then(r => {console.log(`ADD Success: ${sourcefile.filename}`);return r;});
-
+            console.log(`ADD Success: ${sourcefile.filename}`);
             add_count++;
-            await gitHubBranchMerge(branch, mergetarget);
-            shaupdate(sourcefile, mysha, addResult.content.sha);
+
             if(mergetarget===masterbranch) {
               translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`,translationUpdatePayload);
             }

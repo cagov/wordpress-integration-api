@@ -13,6 +13,7 @@
   },
   "license": "ISC",
   "dependencies": {
+    "github-api": "^3.3.0",
     "jsdom": "^16.2.2",
     "node-fetch": "^2.6.1",
     "sha1": "^1.1.1"
