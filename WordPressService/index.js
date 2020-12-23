@@ -184,7 +184,9 @@ module.exports = async function (context, req) {
                 const message = gitHubMessage('Update page',targetfile.name);
                 await gitRepo.writeFile(mergetarget, targetfile.path, content, message, {committer,encode:false},
                   (_a,results) => {
-                    shaupdate(sourcefile, mysha, results.content.sha);
+                    if(results) {
+                      shaupdate(sourcefile, mysha, results.content.sha);
+                    }
                   }
                 );
 
@@ -208,7 +210,9 @@ module.exports = async function (context, req) {
             const message = gitHubMessage('Add page',newFileName);
             await gitRepo.writeFile(mergetarget, newFilePath, content, message, {committer,encode:false},
               (_a,results) => {
-                shaupdate(sourcefile, mysha, results.content.sha);
+                if(results) {
+                  shaupdate(sourcefile, mysha, results.content.sha);
+                }
               }
             );
 
