@@ -5,9 +5,15 @@ const fetch = require('node-fetch');
 const tag_translatepriority = 'translate-priority';
 const translationUpdateEndpointUrl = 'https://workflow.avant.tools/subscribers/xtm';
 
-const postTranslations = async translationUpdatePayload => {
+const postTranslations = async translationUpdateList => {
+  for (let post of translationUpdateList) {
+    await postOneTranslationPing(post);
+  }
+};
+
+const postOneTranslationPing = async singlePayload => {
   const postBody = {
-    posts: translationUpdatePayload
+    posts: [singlePayload] //still using array format to support old schema
   };
   if(testPostMode) {
     postBody.test = 1;
@@ -20,7 +26,7 @@ const postTranslations = async translationUpdatePayload => {
     .then(() => {console.log(`Translation Update POST Success`);});
 };
 
-const translationUpdateAddPost = (Post, download_path, translationUpdatePayload) => {
+const translationUpdateAddPost = (Post, download_path, translationUpdateList) => {
   if(Post.translate) {
     //Send pages marked "translate"
     const translationRow = {
@@ -38,7 +44,7 @@ const translationUpdateAddPost = (Post, download_path, translationUpdatePayload)
       translationRow.priority = true;
     }
 
-    translationUpdatePayload.push(translationRow);
+    translationUpdateList.push(translationRow);
   }
 };
 

@@ -57,7 +57,7 @@ module.exports = async function (context, req) {
     const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
       .getRepo(githubUser,githubRepo);
 
-    const translationUpdatePayload = []; //Translation DB
+    const translationUpdateList = []; //Translation DB
 
     if(req.method==='GET') {
     //Hitting the service by default will show the index page.
@@ -194,7 +194,7 @@ module.exports = async function (context, req) {
                 update_count++;
 
                 if(mergetarget===masterbranch) {
-                  translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`,translationUpdatePayload);
+                  translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`,translationUpdateList);
                 }
               } else {
                 console.log(`File compare matched: ${sourcefile.filename}`);
@@ -220,7 +220,7 @@ module.exports = async function (context, req) {
             add_count++;
 
             if(mergetarget===masterbranch) {
-              translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`,translationUpdatePayload);
+              translationUpdateAddPost(sourcefile, `/${mergetarget}/${newFilePath}`,translationUpdateList);
             }
           }
         }
@@ -243,7 +243,7 @@ module.exports = async function (context, req) {
     if(ignore_count>0) log.ignore_count = ignore_count;
     if(staging_only_count>0) log.staging_only_count = staging_only_count;
     if(total_changes>0) log.total_changes = total_changes;
-    if(translationUpdatePayload.length>0) log.translationUpdatePayload = translationUpdatePayload;
+    if(translationUpdateList.length>0) log.translationUpdateList = translationUpdateList;
     if(req.body) log.RequestBody = req.body;
 
     pinghistory.unshift(log);
@@ -256,8 +256,8 @@ module.exports = async function (context, req) {
       }
     };
 
-    if(postTranslationUpdates&&translationUpdatePayload.length) {
-      await postTranslations(translationUpdatePayload);
+    if(postTranslationUpdates&&translationUpdateList.length) {
+      await postTranslations(translationUpdateList);
     }
 
     console.log('done.');
