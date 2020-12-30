@@ -31,6 +31,9 @@ const shaupdate = (file, wp_sha, github_sha) => {
 
 let pinghistory = []; //Used to log updates
 
+//Put a slug in here to manually force a translation
+const forceTranslateSlug = null; //'safer-economy-lang';
+
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
 const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
@@ -156,6 +159,15 @@ module.exports = async function (context, req) {
 
       //ADD/UPDATE
       for(const sourcefile of manifest.posts) {
+        if(forceTranslateSlug && sourcefile.slug===forceTranslateSlug && mergetarget===masterbranch) {
+          //Manual translation request
+          const targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
+          if(targetfile) {
+            console.log(`Manually submitting translation request for "${forceTranslateSlug}"`);
+            translationUpdateAddPost(sourcefile, `/${mergetarget}/${targetfile.path}`,translationUpdateList);
+          }
+        }
+
         if(sourcefile.ignore) {
           console.log(`Ignored: ${sourcefile.filename}`);
           ignore_count++;
