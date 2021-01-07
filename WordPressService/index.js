@@ -17,17 +17,8 @@ const { JSDOM } = require('jsdom');
 const sha1 = require('sha1');
 const fs = require('fs');
 
-//begin shadabase support
-const shadabase = [];
-const shamatch = (wp_sha, github_sha, wp_slug, wp_modified) =>
-  shadabase.find(x=>x.wp_sha===wp_sha&&x.github_sha===github_sha&&x.slug===wp_slug&&x.modified===wp_modified);
-//set the sha values in a file record
-const shaupdate = (file, wp_sha, github_sha) => {
-  if(wp_sha&&github_sha&&!shamatch(wp_sha, github_sha, file.slug, file.modified)) {
-    shadabase.push({wp_sha, github_sha, slug:file.slug, modified:file.modified});
-  }
-};
-//end shadabase support
+//Git generates the SHA by concatenating a header in the form of blob {content.length} {null byte} and the contents of your file
+const gitHubBlobPredictSha = content => sha1(`blob ${Buffer.byteLength(content)}\0${content}`);
 
 let pinghistory = []; //Used to log updates
 
@@ -177,14 +168,12 @@ module.exports = async function (context, req) {
         } else {
           let targetfile = targetfiles.find(y=>sourcefile.filename===y.filename);
           const content = Buffer.from(sourcefile.html).toString('base64');
-          const mysha = sha1(sourcefile.html);
+          const sourceSha = gitHubBlobPredictSha(sourcefile.html);
 
           if(targetfile) {
             //UPDATE
-
-            if(shamatch(mysha, targetfile.sha, sourcefile.slug, sourcefile.modified)) {
+            if(targetfile.sha===sourceSha) {
               console.log(`SHA matched: ${sourcefile.filename}`);
-              shaupdate(sourcefile, mysha, targetfile.sha);
               sha_match_count++;
             } else {
               //compare
@@ -194,13 +183,7 @@ module.exports = async function (context, req) {
               if(content!==targetcontent) {
                 //Update file
                 const message = gitHubMessage('Update page',targetfile.name);
-                await gitRepo.writeFile(mergetarget, targetfile.path, content, message, {committer,encode:false},
-                  (_a,results) => {
-                    if(results) {
-                      shaupdate(sourcefile, mysha, results.content.sha);
-                    }
-                  }
-                );
+                await gitRepo.writeFile(mergetarget, targetfile.path, content, message, {committer,encode:false});
 
                 console.log(`UPDATE Success: ${sourcefile.filename}`);
                 update_count++;
@@ -210,7 +193,6 @@ module.exports = async function (context, req) {
                 }
               } else {
                 console.log(`File compare matched: ${sourcefile.filename}`);
-                shaupdate(sourcefile, mysha, targetfile.sha);
 
                 binary_match_count++;
               }
@@ -220,13 +202,7 @@ module.exports = async function (context, req) {
             const newFileName = `${sourcefile.filename}.${sourcefile.isTableData ? 'json' : 'html'}`;
             const newFilePath = `${githubSyncFolder}/${newFileName}`;
             const message = gitHubMessage('Add page',newFileName);
-            await gitRepo.writeFile(mergetarget, newFilePath, content, message, {committer,encode:false},
-              (_a,results) => {
-                if(results) {
-                  shaupdate(sourcefile, mysha, results.content.sha);
-                }
-              }
-            );
+            await gitRepo.writeFile(mergetarget, newFilePath, content, message, {committer,encode:false});
 
             console.log(`ADD Success: ${sourcefile.filename}`);
             add_count++;
