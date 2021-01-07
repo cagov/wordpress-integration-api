@@ -19,15 +19,14 @@ const fs = require('fs');
 
 //Git generates the SHA by concatenating a header in the form of blob {content.length} {null byte} and the contents of your file
 const gitHubBlobPredictSha = content => sha1(`blob ${Buffer.byteLength(content)}\0${content}`);
-//end shadabase support
 
 let pinghistory = []; //Used to log updates
 
 //Put a slug in here to manually force a translation
 const forceTranslateSlug = null; //'safer-economy-lang';
 
-const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
-//const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
+//const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
+const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'WordPressService';
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
@@ -43,8 +42,8 @@ const tag_nocrawl = 'do-not-crawl';
 const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
-const slackErrorChannel = 'C01H6RB99E2'; //Carter's debug channel
-//const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
+//const slackErrorChannel = 'C01H6RB99E2'; //Carter's debug channel
+const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
 
 module.exports = async function (context, req) {
 
