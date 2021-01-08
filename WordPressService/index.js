@@ -183,7 +183,17 @@ module.exports = async function (context, req) {
               if(content!==targetcontent) {
                 //Update file
                 const message = gitHubMessage('Update page',targetfile.name);
-                await gitRepo.writeFile(mergetarget, targetfile.path, content, message, {committer,encode:false});
+                await gitRepo.writeFile(mergetarget, targetfile.path, content, message, {committer,encode:false})
+                  .catch(error => {
+                    switch (error.response.status) {
+                    case 409:
+                      //conflicts could mean that the page was updated by another process.  No need to stop.
+                      console.error('409 conflict skipped');
+                      return null;
+                    default:
+                      throw error;
+                    }
+                  });
 
                 console.log(`UPDATE Success: ${sourcefile.filename}`);
                 update_count++;
