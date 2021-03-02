@@ -25,6 +25,8 @@ let pinghistory = []; //Used to log updates
 //Put a slug in here to manually force a translation
 const forceTranslateSlug = null; //'safer-economy-lang';
 
+//delete this comment
+
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
 const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
