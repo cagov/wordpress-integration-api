@@ -1,7 +1,7 @@
 const { fetchJSON } = require('../common/fetchJSON');
 const GitHub = require('github-api');
 const committer = {
-  'name': 'WordPressService',
+  'name': 'PantheonService',
   'email': 'data@alpha.ca.gov'
 };
 const githubUser = 'cagov';
@@ -28,11 +28,15 @@ const forceTranslateSlug = null; //'safer-economy-lang';
 //delete this comment
 
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
-const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
+
+// const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
+const masterbranch='master-pantheon', stagingbranch='staging-pantheon', postTranslationUpdates = false;
+
 const mergetargets = [masterbranch,stagingbranch];
-const appName = 'WordPressService';
+const appName = 'PantheonService';
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
-const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
+// const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
+const wordPressUrl = 'https://test-covid19-ca-gov.pantheonsite.io';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
 const defaultTags = [];
 const ignoreFiles = []; //No longer needed since manual-content folder used.
@@ -256,7 +260,7 @@ module.exports = async function (context, req) {
       }
     };
 
-    if (postTranslationUpdates && translationUpdateList.length) {
+    if(postTranslationUpdates&&translationUpdateList.length) {
       await postTranslations(translationUpdateList);
     }
 
