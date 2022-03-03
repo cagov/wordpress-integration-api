@@ -47,13 +47,19 @@ const tag_nomaster = 'staging-only';
 //const slackErrorChannel = 'C01H6RB99E2'; //Carter's debug channel
 const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
 
+/**
+ * @param {number} timeout
+ */
+function wait(timeout) {
+  return new Promise(resolve => {
+    setTimeout(resolve, timeout);
+  });
+}
+
+
 module.exports = async function (context, req) {
 
   try { // The entire module
-    const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
-      .getRepo(githubUser,githubRepo);
-
-    const translationUpdateList = []; //Translation DB
 
     if(req.method==='GET') {
     //Hitting the service by default will show the index page.
@@ -67,6 +73,13 @@ module.exports = async function (context, req) {
       context.done();
       return;
     }
+
+    await wait(10 * 1000); // waiting 10 seconds to avoid sync issues with Pantheon notifications
+
+    const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
+      .getRepo(githubUser,githubRepo);
+
+    const translationUpdateList = []; //Translation DB
 
     //Logging data
     const started = getPacificTimeNow();
