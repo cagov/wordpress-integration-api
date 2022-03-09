@@ -1,5 +1,7 @@
 # Wordpress content integration service for Covid19.ca.gov
-Using the WordPress API, deploys posts to a target GitHub location; specifically for the [covid19.ca.gov](https://covid19.ca.gov) website.
+Using the WordPress API, deploys posts to a target GitHub location and facilitates translations; specifically for the [covid19.ca.gov](https://covid19.ca.gov) website.
+
+See below for an outline of the [Translation Pipeline](#translation-pipline-for-covid19cagov).
 
 ## Features
 - Pushes post content updates to a GitHub repository (Add/Update/Delete).
