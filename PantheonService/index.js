@@ -51,9 +51,22 @@ const tag_nomaster = 'staging-only';
 //const slackErrorChannel = 'C01H6RB99E2'; //Carter's debug channel
 const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
 
+/**
+ * @param {number} timeout
+ */
+ function wait(timeout) {
+  return new Promise(resolve => {
+    setTimeout(resolve, timeout);
+  });
+}
+
+
 module.exports = async function (context, req) {
 
   try { // The entire module
+
+    await wait(10 * 1000); // waiting 10 seconds to avoid sync issues with Pantheon notifications
+
     const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
       .getRepo(githubUser,githubRepo);
 
@@ -90,7 +103,7 @@ module.exports = async function (context, req) {
     const getWordPressPosts = async () => {
       const fetchoutput = {};
       //const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
-      const fetchquery = `${wordPressApiUrl}posts?per_page=100&orderby=slug&order=asc`;
+      const fetchquery = `${wordPressApiUrl}posts?per_page=100&orderby=slug&order=asc&cachebust=`+Math.floor(Math.random()*10000000);
       const sourcefiles = await fetchJSON(fetchquery,undefined,fetchoutput);
       const totalpages = Number(fetchoutput.response.headers.get('x-wp-totalpages'));
       for(let currentpage = 2; currentpage<=totalpages; currentpage++)
@@ -180,6 +193,9 @@ module.exports = async function (context, req) {
             //UPDATE
             if(targetfile.sha===sourceSha) {
               console.log(`SHA matched: ${sourcefile.filename}`);
+              if (sourcefile.filename == "sandbox") {
+                console.log("Sandbox HTML",sourcefile.html);
+              }
               sha_match_count++;
             } else {
               //compare
