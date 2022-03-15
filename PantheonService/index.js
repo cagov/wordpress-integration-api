@@ -30,8 +30,9 @@ const forceTranslateSlug = null; //'safer-economy-lang';
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
 
 // const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
-const masterbranch='preproduction', 
-      stagingbranch='staging-pantheon', 
+// was preproduction / staging-pantheon
+const masterbranch='master', 
+      stagingbranch='staging', 
       postTranslationUpdates = false;
 
 const mergetargets = [masterbranch,stagingbranch];
