@@ -67,7 +67,7 @@ module.exports = async function (context, req) {
 
   try { // The entire module
 
-    await wait(10 * 1000); // waiting 10 seconds to avoid sync issues with Pantheon notifications
+    await wait(30 * 1000); // waiting 10 seconds to avoid sync issues with Pantheon notifications
 
     const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
       .getRepo(githubUser,githubRepo);
