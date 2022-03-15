@@ -11,7 +11,7 @@ const {
   postTranslations,
   translationUpdateAddPost
 } = require('../common/avantPage');
-const { slackBotReportError } = require('../common/slackBot');
+const { slackBotReportError, slackBotChatPost} = require('../common/slackBot');
 
 const { JSDOM } = require('jsdom');
 const sha1 = require('sha1');
@@ -62,8 +62,8 @@ module.exports = async function (context, req) {
   try { // The entire module
 
     // EARLY RETURN - THIS SERVICE IS DISABLED
-    const errorTitle = 'Old WordPressService needlessly invoked (wordpress-integration-api)';
-    await slackBotReportError(slackErrorChannel,errorTitle,e,req);
+    const infoMessage = 'Old WordPressService needlessly invoked (wordpress-integration-api)';
+    await slackBotChatPost(slackErrorChannel, infoMessage);
     context.done();
     return;
 
