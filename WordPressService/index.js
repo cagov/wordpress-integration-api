@@ -61,6 +61,12 @@ module.exports = async function (context, req) {
 
   try { // The entire module
 
+    // EARLY RETURN - THIS SERVICE IS DISABLED
+    const errorTitle = 'Old WordPressService needlessly invoked (wordpress-integration-api)';
+    await slackBotReportError(slackErrorChannel,errorTitle,e,req);
+    context.done();
+    return;
+
     if(req.method==='GET') {
     //Hitting the service by default will show the index page.
       context.res = {
