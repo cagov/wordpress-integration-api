@@ -15,7 +15,7 @@
   "dependencies": {
     "github-api": "^3.4.0",
     "jsdom": "^16.2.2",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "sha1": "^1.1.1"
   }
 }
