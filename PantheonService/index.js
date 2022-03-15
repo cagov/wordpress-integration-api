@@ -33,7 +33,7 @@ const forceTranslateSlug = null; //'safer-economy-lang';
 // was preproduction / staging-pantheon
 const masterbranch='master', 
       stagingbranch='staging', 
-      postTranslationUpdates = false;
+      postTranslationUpdates = true;
 
 const mergetargets = [masterbranch,stagingbranch];
 const appName = 'PantheonService';
