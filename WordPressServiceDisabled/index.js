@@ -1,7 +1,7 @@
 const { fetchJSON } = require('../common/fetchJSON');
 const GitHub = require('github-api');
 const committer = {
-  'name': 'WordPressService',
+  'name': 'WordPressServiceDisabled',
   'email': 'data@alpha.ca.gov'
 };
 const githubUser = 'cagov';
@@ -30,7 +30,7 @@ const forceTranslateSlug = null; //'safer-economy-lang';
 //const masterbranch='synctest3', stagingbranch='synctest3_staging', postTranslationUpdates = false;
 const masterbranch='master', stagingbranch='staging', postTranslationUpdates = true;
 const mergetargets = [masterbranch,stagingbranch];
-const appName = 'WordPressService';
+const appName = 'WordPressServiceDisabled';
 const githubSyncFolder = 'pages/wordpress-posts'; //no slash at the end
 const wordPressUrl = 'https://as-go-covid19-d-001.azurewebsites.net';
 const wordPressApiUrl = `${wordPressUrl}/wp-json/wp/v2/`;
@@ -62,7 +62,7 @@ module.exports = async function (context, req) {
   try { // The entire module
 
     // EARLY RETURN - THIS SERVICE IS DISABLED
-    const infoMessage = 'Old WordPressService needlessly invoked (wordpress-integration-api)';
+    const infoMessage = 'Former WordPressService needlessly invoked (wordpress-integration-api)';
     await slackBotChatPost(slackErrorChannel, infoMessage);
     context.done();
     return;
