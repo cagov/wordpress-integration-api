@@ -53,7 +53,8 @@ const tag_langprefix = 'lang-';
 const tag_langdefault = 'en';
 const tag_nomaster = 'staging-only';
 //const slackErrorChannel = 'C01H6RB99E2'; //Carter's debug channel
-const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
+const slackErrorChannel = 'C01DBP67MSQ'; // #testingbot channel
+const slackDebugChannel = 'C02J16U50KE'; // #jbum-testing
 
 /**
  * @param {number} timeout
@@ -67,9 +68,14 @@ const slackErrorChannel = 'C01DBP67MSQ'; //Testingbot channel
 
 module.exports = async function (context, req) {
 
+  let slackPostTS = null;
+
   try { // The entire module
 
+    slackPostTS = (await (await slackBotChatPost(slackDebugChannel,`${appName} triggered`)).json()).ts;
+
     await wait(30 * 1000); // waiting 10 seconds to avoid sync issues with Pantheon notifications
+    await slackBotReplyPost(slackDebugChannel, slackPostTS,`${appName} started after delay`);
 
     const gitRepo = await new GitHub({token: process.env["GITHUB_TOKEN"]})
       .getRepo(githubUser,githubRepo);
