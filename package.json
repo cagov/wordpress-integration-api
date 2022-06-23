@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "github-api": "^3.4.0",
-    "jsdom": "^16.2.2",
+    "jsdom": "^16.5.0",
     "node-fetch": "^2.6.7",
     "fetch-retry": "^4.1.1",
     "sha1": "^1.1.1"
