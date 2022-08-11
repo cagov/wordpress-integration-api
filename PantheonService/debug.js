@@ -13,6 +13,6 @@ const indexCode = require("./index");
 
 (async () => {
     console.log("Testing beginning");
-    await indexCode(context,{method:'POSTs'});
+    await indexCode(context,{method:'POST'});
     console.log("Testing ending");
 })();

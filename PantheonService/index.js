@@ -109,7 +109,7 @@ module.exports = async function (context, req) {
 
     const excerptToDescription = excerpt => excerpt.replace(/<p>/,'').replace(/<\/p>/,'').replace(/\n/,'').trim();
 
-    //Query WP files
+    // Query WP files
     const getWordPressPosts = async () => {
       const fetchoutput = {};
       //const fetchquery = `${wordPressApiUrl}posts?per_page=100&categories_exclude=${ignoreCategoryId}`;
